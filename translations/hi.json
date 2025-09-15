@@ -1,0 +1,69 @@
+{
+  "app_title": "धन्या असिस्ट",
+  "app_subtitle": "एआई-संचालित फसल सलाहकार प्रणाली",
+  "welcome_message": "किसानों को सशक्त बनाना, फसलों को समृद्ध करना",
+  "language_selector": "भाषा चुनें",
+  "dashboard": "डैशबोर्ड",
+  "crop_recommendations": "फसल की सिफारिशें",
+  "weather_forecast": "मौसम पूर्वानुमान",
+  "disease_detection": "रोग का पता लगाना",
+  "market_prices": "बाजार की कीमतें",
+  "farming_tips": "खेती के टिप्स",
+  
+  "input_section": "खेत की जानकारी",
+  "soil_ph": "मिट्टी का पीएच स्तर",
+  "nitrogen": "नाइट्रोजन (N)",
+  "phosphorus": "फास्फोरस (P)",
+  "potassium": "पोटेशियम (K)",
+  "temperature": "तापमान (°C)",
+  "humidity": "आर्द्रता (%)",
+  "rainfall": "वर्षा (mm)",
+  "location": "आपका स्थान",
+  
+  "get_recommendations": "फसल की सिफारिश प्राप्त करें",
+  "upload_image": "फसल की तस्वीर अपलोड करें",
+  "analyze_disease": "रोगों का विश्लेषण करें",
+  "check_weather": "मौसम जांचें",
+  
+  "recommended_crops": "आपके खेत के लिए सुझाई गई फसलें",
+  "confidence_score": "विश्वसनीयता",
+  "yield_estimate": "अपेक्षित उत्पादन",
+  "profit_estimate": "अनुमानित लाभ",
+  
+  "weather_info": "वर्तमान मौसम की स्थिति",
+  "temperature_label": "तापमान",
+  "humidity_label": "आर्द्रता",
+  "rainfall_label": "वर्षा",
+  "weather_desc": "मध्यम आर्द्रता के साथ आंशिक रूप से बादल, अधिकांश फसलों के लिए उपयुक्त",
+  
+  "disease_analysis": "रोग विश्लेषण परिणाम",
+  "detected_disease": "पाया गया रोग",
+  "treatment_recommended": "सुझावित उपचार",
+  "prevention_tips": "रोकथाम के टिप्स",
+  
+  "crop_rice": "चावल",
+  "crop_wheat": "गेहूं",
+  "crop_sugarcane": "गन्ना",
+  "crop_cotton": "कपास",
+  "crop_maize": "मक्का",
+  "crop_tomato": "टमाटर",
+  
+  "disease_leaf_blight": "पत्ती का झुलसा रोग",
+  "disease_rust": "रस्ट रोग",
+  "disease_wilt": "जीवाणु मुरझान",
+  
+  "treatment_fungicide": "सप्ताह में दो बार तांबा आधारित फफूंदनाशी स्प्रे करें",
+  "treatment_organic": "नीम का तेल स्प्रे करें और उचित जल निकासी बनाए रखें",
+  "treatment_antibacterial": "प्रभावित पौधों को हटाएं और मिट्टी को जीवाणुरोधी एजेंटों से उपचारित करें",
+  
+  "prevention_spacing": "उचित पौधे की दूरी बनाए रखें और ऊपरी सिंचाई से बचें",
+  "prevention_rotation": "फसल चक्रण करें और रोग प्रतिरोधी किस्मों का उपयोग करें",
+  "prevention_hygiene": "उपकरणों को साफ रखें और संक्रमित पौधों के मलबे को हटा दें",
+  
+  "recommendations_ready": "फसल की सिफारिशें सफलतापूर्वक तैयार की गईं!",
+  "analysis_complete": "छवि विश्लेषण सफलतापूर्वक पूरा हुआ!",
+  "no_file_selected": "कृपया अपलोड करने के लिए एक छवि फ़ाइल चुनें",
+  
+  "footer_text": "स्मार्ट इंडिया हैकाथॉन 2024 के लिए टीम एल्गोरिदमिक एल्केमिस्ट्स द्वारा निर्मित",
+  "powered_by": "एआई और रियल-टाइम डेटा द्वारा संचालित"
+}

@@ -1,0 +1,69 @@
+{
+  "app_title": "ಧನ್ಯ ಅಸಿಸ್ಟ್",
+  "app_subtitle": "AI-ಚಾಲಿತ ಬೆಳೆ ಸಲಹಾ ವ್ಯವಸ್ಥೆ",
+  "welcome_message": "ರೈತರನ್ನು ಸಶಕ್ತಿಕರಣ, ಬೆಳೆಗಳನ್ನು ಸಮೃದ್ಧಗೊಳಿಸುವುದು",
+  "language_selector": "ಭಾಷೆ ಆಯ್ಕೆ ಮಾಡಿ",
+  "dashboard": "ಡ್ಯಾಶ್‌ಬೋರ್ಡ್",
+  "crop_recommendations": "ಬೆಳೆ ಶಿಫಾರಸುಗಳು",
+  "weather_forecast": "ಹವಾಮಾನ ಮುನ್ಸೂಚನೆ",
+  "disease_detection": "ರೋಗ ಪತ್ತೆ",
+  "market_prices": "ಮಾರುಕಟ್ಟೆ ಬೆಲೆಗಳು",
+  "farming_tips": "ಕೃಷಿ ಸಲಹೆಗಳು",
+  
+  "input_section": "ಫಾರ್ಮ್ ಮಾಹಿತಿ",
+  "soil_ph": "ಮಣ್ಣಿನ pH ಮಟ್ಟ",
+  "nitrogen": "ನೈಟ್ರೋಜನ್ (N)",
+  "phosphorus": "ಫಾಸ್ಫರಸ್ (P)",
+  "potassium": "ಪೊಟ್ಯಾಸಿಯಮ್ (K)",
+  "temperature": "ತಾಪಮಾನ (°C)",
+  "humidity": "ಆರ್ದ್ರತೆ (%)",
+  "rainfall": "ಮಳೆ (mm)",
+  "location": "ನಿಮ್ಮ ಸ್ಥಳ",
+  
+  "get_recommendations": "ಬೆಳೆ ಶಿಫಾರಸುಗಳನ್ನು ಪಡೆಯಿರಿ",
+  "upload_image": "ಬೆಳೆ ಚಿತ್ರ ಅಪ್‌ಲೋಡ್ ಮಾಡಿ",
+  "analyze_disease": "ರೋಗಗಳ ವಿಶ್ಲೇಷಣೆ ಮಾಡಿ",
+  "check_weather": "ಹವಾಮಾನ ಪರಿಶೀಲಿಸಿ",
+  
+  "recommended_crops": "ನಿಮ್ಮ ಫಾರ್ಮ್‌ಗೆ ಶಿಫಾರಸು ಮಾಡಲಾದ ಬೆಳೆಗಳು",
+  "confidence_score": "ವಿಶ್ವಾಸಾರ್ಹತೆ",
+  "yield_estimate": "ನಿರೀಕ್ಷಿತ ಇಳುವರಿ",
+  "profit_estimate": "ಅಂದಾಜು ಲಾಭ",
+  
+  "weather_info": "ಪ್ರಸ್ತುತ ಹವಾಮಾನ ಪರಿಸ್ಥಿತಿಗಳು",
+  "temperature_label": "ತಾಪಮಾನ",
+  "humidity_label": "ಆರ್ದ್ರತೆ",
+  "rainfall_label": "ಮಳೆ",
+  "weather_desc": "ಮಧ್ಯಮ ಆರ್ದ್ರತೆಯೊಂದಿಗೆ ಭಾಗಶಃ ಮೋಡ, ಹೆಚ್ಚಿನ ಬೆಳೆಗಳಿಗೆ ಸೂಕ್ತ",
+  
+  "disease_analysis": "ರೋಗ ವಿಶ್ಲೇಷಣೆ ಫಲಿತಾಂಶಗಳು",
+  "detected_disease": "ಪತ್ತೆಯಾದ ರೋಗ",
+  "treatment_recommended": "ಶಿಫಾರಸು ಮಾಡಿದ ಚಿಕಿತ್ಸೆ",
+  "prevention_tips": "ತಡೆಗಟ್ಟುವ ಸಲಹೆಗಳು",
+  
+  "crop_rice": "ಅಕ್ಕಿ",
+  "crop_wheat": "ಗೋಧಿ",
+  "crop_sugarcane": "ಕಬ್ಬು",
+  "crop_cotton": "ಹತ್ತಿ",
+  "crop_maize": "ಮೆಕ್ಕೆ ಜೋಳ",
+  "crop_tomato": "ಟೊಮೇಟೊ",
+  
+  "disease_leaf_blight": "ಎಲೆ ಕಳೆ ರೋಗ",
+  "disease_rust": "ಸತು ರೋಗ",
+  "disease_wilt": "ಬ್ಯಾಕ್ಟೀರಿಯಾ ಬಾಡಿಕೆ",
+  
+  "treatment_fungicide": "ವಾರಕ್ಕೆ ಎರಡು ಬಾರಿ ತಾಮ್ರ ಆಧಾರಿತ ಶಿಲೀಂಧ್ರನಾಶಕ ಸಿಂಪಡಿಸಿ",
+  "treatment_organic": "ಬೇವಿನ ಎಣ್ಣೆ ಸಿಂಪಡಿಸಿ ಮತ್ತು ಸರಿಯಾದ ಒಳಚರಂಡಿ ನಿರ್ವಹಿಸಿ",
+  "treatment_antibacterial": "ಪೀಡಿತ ಸಸ್ಯಗಳನ್ನು ತೆಗೆದುಹಾಕಿ ಮತ್ತು ಮಣ್ಣನ್ನು ಬ್ಯಾಕ್ಟೀರಿಯಾ ವಿರೋಧಿ ಏಜೆಂಟ್‌ಗಳಿಂದ ಚಿಕಿತ್ಸೆ ಮಾಡಿ",
+  
+  "prevention_spacing": "ಸರಿಯಾದ ಸಸ್ಯ ಅಂತರ ಕಾಯ್ದುಕೊಳ್ಳಿ ಮತ್ತು ಮೇಲಿನಿಂದ ನೀರು ಹಾಕುವುದನ್ನು ತಪ್ಪಿಸಿ",
+  "prevention_rotation": "ಬೆಳೆ ಪಲ್ಟಿ ಮಾಡಿ ಮತ್ತು ರೋಗ ನಿರೋಧಕ ಪ್ರಭೇದಗಳನ್ನು ಬಳಸಿ",
+  "prevention_hygiene": "ಉಪಕರಣಗಳನ್ನು ಸ್ವಚ್ಛವಾಗಿ ಇರಿಸಿ ಮತ್ತು ಸೋಂಕಿತ ಸಸ್ಯ ಅವಶೇಷಗಳನ್ನು ತೆಗೆದುಹಾಕಿ",
+  
+  "recommendations_ready": "ಬೆಳೆ ಶಿಫಾರಸುಗಳು ಯಶಸ್ವಿಯಾಗಿ ರಚಿಸಲಾಗಿದೆ!",
+  "analysis_complete": "ಚಿತ್ರ ವಿಶ್ಲೇಷಣೆ ಯಶಸ್ವಿಯಾಗಿ ಪೂರ್ಣಗೊಂಡಿದೆ!",
+  "no_file_selected": "ಅಪ್‌ಲೋಡ್ ಮಾಡಲು ಚಿತ್ರ ಫೈಲ್ ಆಯ್ಕೆ ಮಾಡಿ",
+  
+  "footer_text": "ಸ್ಮಾರ್ಟ್ ಇಂಡಿಯಾ ಹ್ಯಾಕಥಾನ್ 2024 ಕ್ಕಾಗಿ ತಂಡ ಅಲ್ಗೊರಿದಮಿಕ್ ಅಲ್ಕೆಮಿಸ್ಟ್ಸ್ ನಿಂದ ನಿರ್ಮಿತ",
+  "powered_by": "AI ಮತ್ತು ರಿಯಲ್-ಟೈಮ್ ಡೇಟಾದಿಂದ ಚಾಲಿತ"
+}

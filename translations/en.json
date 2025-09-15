@@ -1,0 +1,69 @@
+{
+  "app_title": "Dhanya Assist",
+  "app_subtitle": "AI-Powered Crop Advisory System",
+  "welcome_message": "Empowering Farmers, Enriching Harvests",
+  "language_selector": "Select Language",
+  "dashboard": "Dashboard",
+  "crop_recommendations": "Crop Recommendations",
+  "weather_forecast": "Weather Forecast",
+  "disease_detection": "Disease Detection",
+  "market_prices": "Market Prices",
+  "farming_tips": "Farming Tips",
+  
+  "input_section": "Farm Information",
+  "soil_ph": "Soil pH Level",
+  "nitrogen": "Nitrogen (N)",
+  "phosphorus": "Phosphorus (P)",
+  "potassium": "Potassium (K)",
+  "temperature": "Temperature (°C)",
+  "humidity": "Humidity (%)",
+  "rainfall": "Rainfall (mm)",
+  "location": "Your Location",
+  
+  "get_recommendations": "Get Crop Recommendations",
+  "upload_image": "Upload Crop Image",
+  "analyze_disease": "Analyze for Diseases",
+  "check_weather": "Check Weather",
+  
+  "recommended_crops": "Recommended Crops for Your Farm",
+  "confidence_score": "Confidence",
+  "yield_estimate": "Expected Yield",
+  "profit_estimate": "Estimated Profit",
+  
+  "weather_info": "Current Weather Conditions",
+  "temperature_label": "Temperature",
+  "humidity_label": "Humidity",
+  "rainfall_label": "Rainfall",
+  "weather_desc": "Partly cloudy with moderate humidity, suitable for most crops",
+  
+  "disease_analysis": "Disease Analysis Results",
+  "detected_disease": "Detected Disease",
+  "treatment_recommended": "Recommended Treatment",
+  "prevention_tips": "Prevention Tips",
+  
+  "crop_rice": "Rice",
+  "crop_wheat": "Wheat",
+  "crop_sugarcane": "Sugarcane",
+  "crop_cotton": "Cotton",
+  "crop_maize": "Maize",
+  "crop_tomato": "Tomato",
+  
+  "disease_leaf_blight": "Leaf Blight",
+  "disease_rust": "Rust Disease",
+  "disease_wilt": "Bacterial Wilt",
+  
+  "treatment_fungicide": "Apply copper-based fungicide spray twice weekly",
+  "treatment_organic": "Use neem oil spray and maintain proper drainage",
+  "treatment_antibacterial": "Remove affected plants and treat soil with antibacterial agents",
+  
+  "prevention_spacing": "Maintain proper plant spacing and avoid overhead watering",
+  "prevention_rotation": "Practice crop rotation and use disease-resistant varieties",
+  "prevention_hygiene": "Keep tools clean and remove infected plant debris",
+  
+  "recommendations_ready": "Crop recommendations generated successfully!",
+  "analysis_complete": "Image analysis completed successfully!",
+  "no_file_selected": "Please select an image file to upload",
+  
+  "footer_text": "Built for Smart India Hackathon 2024 by Team Algorithmic Alchemists",
+  "powered_by": "Powered by AI and Real-time Data"
+}
