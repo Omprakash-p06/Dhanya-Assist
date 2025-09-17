@@ -1230,70 +1230,101 @@
                 maxZoom: 19,
             }).addTo(map);
 
-            // Detect user's location
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(function (position) {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
+            // Function to update both map and weather panel
+            function updateLocationAndWeather(lat, lon) {
+                // Update map with user's location
+                const userMarker = L.marker([lat, lon]).addTo(map);
+                map.setView([lat, lon], 13);
 
-                    // Update map with user's location
-                    const userMarker = L.marker([lat, lon]).addTo(map);
-                    map.setView([lat, lon], 13);
+                // Add a popup to the marker
+                userMarker.bindPopup(`📍 Your Location<br>Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`).openPopup();
 
-                    // Add a popup to the marker
-                    userMarker.bindPopup(`📍 Your Location<br>Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`).openPopup();
+                // Update weather panel with location (initially with coordinates)
+                const weatherLocationElement = document.getElementById('weather-location');
+                if (weatherLocationElement) {
+                    weatherLocationElement.textContent = `📍 Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+                }
 
-                    // Update weather panel with location (initially with coordinates)
-                    document.getElementById('weather-location').textContent = `📍 Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
-
-                    // Fetch weather data for the location
-                    fetch(`/weather?lat=${lat}&lon=${lon}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.error) {
-                                console.error('Weather API Error:', data.error);
-                                // Still update with available data
-                            }
+                // Fetch weather data for the location
+                fetch(`/weather?lat=${lat}&lon=${lon}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Weather data received:', data);
+                        
+                        if (data.error) {
+                            console.error('Weather API Error:', data.error);
+                        }
+                        
+                        // Update weather panel with real data and location name
+                        if (data.location && data.country && weatherLocationElement) {
+                            weatherLocationElement.textContent = `📍 ${data.location}, ${data.country}`;
+                            // Update marker popup with location name
+                            userMarker.bindPopup(`📍 ${data.location}, ${data.country}<br>Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`);
+                        }
+                        
+                        // Update weather panel elements
+                        const descElement = document.getElementById('weather-description');
+                        const tempElement = document.getElementById('weather-temperature');
+                        const humidityElement = document.getElementById('weather-humidity');
+                        const rainfallElement = document.getElementById('weather-rainfall');
+                        
+                        if (descElement) descElement.textContent = data.description || 'N/A';
+                        if (tempElement) tempElement.textContent = `${data.temperature || 'N/A'}°C`;
+                        if (humidityElement) humidityElement.textContent = `${data.humidity || 'N/A'}%`;
+                        if (rainfallElement) rainfallElement.textContent = `${data.rainfall || 0}mm`;
+                        
+                        // Add additional weather info if available
+                        const weatherPanel = document.getElementById('weather-panel');
+                        if (weatherPanel) {
+                            // Remove existing additional elements
+                            const existingWind = document.getElementById('weather-wind');
+                            const existingPressure = document.getElementById('weather-pressure');
+                            if (existingWind) existingWind.remove();
+                            if (existingPressure) existingPressure.remove();
                             
-                            // Update weather panel with real data and location name
-                            if (data.location && data.country) {
-                                document.getElementById('weather-location').textContent = `📍 ${data.location}, ${data.country}`;
-                                // Update marker popup with location name
-                                userMarker.bindPopup(`📍 ${data.location}, ${data.country}<br>Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`);
-                            }
-                            
-                            document.getElementById('weather-description').textContent = data.description || 'N/A';
-                            document.getElementById('weather-temperature').textContent = `${data.temperature || 'N/A'}°C`;
-                            document.getElementById('weather-humidity').textContent = `${data.humidity || 'N/A'}%`;
-                            document.getElementById('weather-rainfall').textContent = `${data.rainfall || 0}mm`;
-                            
-                            // Add additional weather info if available
                             if (data.wind_speed) {
                                 const windInfo = document.createElement('p');
                                 windInfo.id = 'weather-wind';
                                 windInfo.textContent = `Wind Speed: ${data.wind_speed} m/s`;
-                                document.getElementById('weather-panel').appendChild(windInfo);
+                                weatherPanel.appendChild(windInfo);
                             }
                             
                             if (data.pressure) {
                                 const pressureInfo = document.createElement('p');
                                 pressureInfo.id = 'weather-pressure';
                                 pressureInfo.textContent = `Pressure: ${data.pressure} hPa`;
-                                document.getElementById('weather-panel').appendChild(pressureInfo);
+                                weatherPanel.appendChild(pressureInfo);
                             }
-                        })
-                        .catch(error => {
-                            console.error('Error fetching weather data:', error);
-                            document.getElementById('weather-location').textContent = `📍 Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)} (Weather unavailable)`;
-                        });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching weather data:', error);
+                        if (weatherLocationElement) {
+                            weatherLocationElement.textContent = `📍 Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)} (Weather unavailable)`;
+                        }
+                    });
+            }
+
+            // Detect user's location
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function (position) {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    updateLocationAndWeather(lat, lon);
                 }, function(error) {
                     console.error('Geolocation error:', error);
-                    document.getElementById('weather-location').textContent = '📍 Location detection failed';
+                    const weatherLocationElement = document.getElementById('weather-location');
+                    if (weatherLocationElement) {
+                        weatherLocationElement.textContent = '📍 Location detection failed';
+                    }
                     alert('Unable to detect your location. Please allow location access for better experience.');
                 });
             } else {
                 alert('Geolocation is not supported by your browser.');
-                document.getElementById('weather-location').textContent = '📍 Geolocation not supported';
+                const weatherLocationElement = document.getElementById('weather-location');
+                if (weatherLocationElement) {
+                    weatherLocationElement.textContent = '📍 Geolocation not supported';
+                }
             }
         });
     </script>
