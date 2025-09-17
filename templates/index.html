@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dhanya Assist - AI Farming Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            /* Light theme - Nature/Greenery colors */
+            --bg-primary: #f0fdf4;
+            --bg-secondary: #dcfce7;
+            --bg-card: #ffffff;
+            --text-primary: #14532d;
+            --text-secondary: #166534;
+            --text-muted: #4ade80;
+            --accent-primary: #22c55e;
+            --accent-secondary: #16a34a;
+            --accent-tertiary: #15803d;
+            --border: #bbf7d0;
+            --shadow: rgba(34, 197, 94, 0.1);
+            --gradient-1: linear-gradient(135deg, #22c55e, #16a34a);
+            --gradient-2: linear-gradient(135deg, #84cc16, #65a30d);
+            --gradient-3: linear-gradient(135deg, #eab308, #ca8a04);
+            --gradient-4: linear-gradient(135deg, #06b6d4, #0891b2);
+        }
+
+        .dark {
+            /* Dark theme - Nature/Greenery colors */
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #64748b;
+            --accent-primary: #22c55e;
+            --accent-secondary: #16a34a;
+            --accent-tertiary: #15803d;
+            --border: #475569;
+            --shadow: rgba(34, 197, 94, 0.2);
+            --gradient-1: linear-gradient(135deg, #22c55e, #16a34a);
+            --gradient-2: linear-gradient(135deg, #84cc16, #65a30d);
+            --gradient-3: linear-gradient(135deg, #eab308, #ca8a04);
+            --gradient-4: linear-gradient(135deg, #06b6d4, #0891b2);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: all 0.3s ease;
+            min-height: 100vh;
+        }
+
+        /* Animated background */
+        .animated-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: var(--bg-primary);
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(34, 197, 94, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(132, 204, 22, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(234, 179, 8, 0.1) 0%, transparent 50%);
+            animation: backgroundShift 10s ease-in-out infinite;
+        }
+
+        @keyframes backgroundShift {
+            0%, 100% { transform: translateX(0) translateY(0); }
+            25% { transform: translateX(-10px) translateY(-5px); }
+            50% { transform: translateX(10px) translateY(5px); }
+            75% { transform: translateX(-5px) translateY(10px); }
+        }
+
+        /* Header */
+        .header {
+            background: var(--gradient-1);
+            padding: 1rem;
+            box-shadow: 0 4px 20px var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: white;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        /* Language Selector - Very Prominent */
+        .language-selector {
+            display: flex;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.5rem;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+
+        .lang-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid transparent;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 60px;
+        }
+
+        .lang-btn:hover, .lang-btn.active {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .lang-flag {
+            font-size: 1.5rem;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+
+        .lang-text {
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        /* Dark Mode Toggle */
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 0.5rem;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .toggle-switch {
+            width: 50px;
+            height: 25px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 25px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 21px;
+            height: 21px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .dark .toggle-switch::after {
+            transform: translateX(25px);
+        }
+
+        /* Main Content */
+        .main-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .welcome-section {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .welcome-title {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: titlePulse 3s ease-in-out infinite;
+        }
+
+        @keyframes titlePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .welcome-subtitle {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        /* Feature Cards */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px var(--shadow);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gradient-1);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 16px 48px var(--shadow);
+        }
+
+        .feature-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            animation: iconFloat 3s ease-in-out infinite;
+        }
+
+        @keyframes iconFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .crop-icon { background: var(--gradient-1); }
+        .weather-icon { background: var(--gradient-4); }
+        .disease-icon { background: var(--gradient-2); }
+        .market-icon { background: var(--gradient-3); }
+
+        .feature-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .feature-description {
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 3rem;
+        }
+
+        .action-btn {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .action-btn:hover::before {
+            left: 100%;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+
+        .btn-primary { background: var(--gradient-1); }
+        .btn-secondary { background: var(--gradient-2); }
+        .btn-tertiary { background: var(--gradient-3); }
+
+        /* Weather Widget */
+        .weather-widget {
+            background: var(--gradient-4);
+            color: white;
+            padding: 2rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .weather-widget::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: weatherAnimation 8s linear infinite;
+        }
+
+        @keyframes weatherAnimation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .weather-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--bg-card);
+            padding: 2rem;
+            border-radius: 16px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-primary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .welcome-title {
+                font-size: 2rem;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .language-selector {
+                order: -1;
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        /* Floating Action Button */
+        .fab {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--gradient-1);
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 8px 24px var(--shadow);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 12px 32px var(--shadow);
+        }
+
+        /* Loading Animation */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Weather Panel */
+        #weather-panel {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        #weather-panel h3 {
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        #weather-panel p {
+            margin: 0.5rem 0;
+            color: var(--text-secondary);
+        }
+    </style>
+    <!-- Leaflet CSS/JS for interactive map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+</head>
+<body>
+    <div class="animated-bg"></div>
+    
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">🌱</div>
+                <span data-translate="app-title">Dhanya Assist</span>
+            </div>
+            
+            <!-- Very Prominent Language Selector -->
+            <div class="language-selector">
+                <div class="lang-btn active" data-lang="en">
+                    <div class="lang-flag">🇺🇸</div>
+                    <div class="lang-text">English</div>
+                </div>
+                <div class="lang-btn" data-lang="hi">
+                    <div class="lang-flag">🇮🇳</div>
+                    <div class="lang-text">हिंदी</div>
+                </div>
+                <div class="lang-btn" data-lang="kn">
+                    <div class="lang-flag">🇮🇳</div>
+                    <div class="lang-text">ಕನ್ನಡ</div>
+                </div>
+            </div>
+            
+            <div class="theme-toggle" onclick="toggleTheme()">
+                <span data-translate="theme">🌙</span>
+                <div class="toggle-switch"></div>
+                <span data-translate="theme">☀️</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <!-- Map placeholder: will show farm location or default India map -->
+        <div id="map" style="height: 300px; margin-bottom: 1rem; border-radius: 12px; overflow: hidden;"></div>
+        <script>
+            try {
+                var map = L.map('map').setView([20.5937, 78.9629], 5); // Default to India center
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+
+                // Try to get user's location and center map
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(function(pos) {
+                        var lat = pos.coords.latitude;
+                        var lon = pos.coords.longitude;
+                        map.setView([lat, lon], 12);
+                        L.marker([lat, lon]).addTo(map).bindPopup("Your farm!").openPopup();
+                    }, function(err) {
+                        // Permission denied or unavailable - keep default view
+                        console.warn('Geolocation failed or denied:', err.message);
+                    });
+                }
+            } catch (e) {
+                console.error('Leaflet map init error:', e);
+            }
+        </script>
+        <section class="welcome-section">
+            <h1 class="welcome-title" data-translate="welcome-title">Smart Farming Assistant</h1>
+            <p class="welcome-subtitle" data-translate="welcome-subtitle">AI-powered agricultural guidance for better crops and higher yields</p>
+        </section>
+
+        <div class="weather-widget">
+            <div class="weather-content">
+                <h3 data-translate="weather-title">Today's Weather</h3>
+                <div id="weather-info">
+                    <p>🌤️ <span data-translate="weather-temp">28°C</span> | <span data-translate="weather-humidity">Humidity: 65%</span></p>
+                    <p data-translate="weather-condition">Partly Cloudy - Good for farming activities</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card" onclick="openModal('crop-modal')">
+                <div class="feature-icon crop-icon">🌾</div>
+                <h3 class="feature-title" data-translate="crop-recommendations">Crop Recommendations</h3>
+                <p class="feature-description" data-translate="crop-desc">Get AI-powered suggestions for the best crops based on your soil, climate, and market conditions.</p>
+            </div>
+
+            <div class="feature-card" onclick="openModal('weather-modal')">
+                <div class="feature-icon weather-icon">🌦️</div>
+                <h3 class="feature-title" data-translate="weather-forecast">Weather Forecast</h3>
+                <p class="feature-description" data-translate="weather-desc">7-day detailed weather predictions with farming-specific insights and alerts.</p>
+            </div>
+
+            <div class="feature-card" onclick="openModal('disease-modal')">
+                <div class="feature-icon disease-icon">🔬</div>
+                <h3 class="feature-title" data-translate="disease-detection">Disease Detection</h3>
+                <p class="feature-description" data-translate="disease-desc">Upload plant photos for instant AI-powered disease identification and treatment recommendations.</p>
+            </div>
+
+            <div class="feature-card" onclick="openModal('market-modal')">
+                <div class="feature-icon market-icon">📈</div>
+                <h3 class="feature-title" data-translate="market-prices">Market Prices</h3>
+                <p class="feature-description" data-translate="market-desc">Real-time crop prices and market trends to help you make informed selling decisions.</p>
+            </div>
+        </div>
+
+        <div class="quick-actions">
+            <button class="action-btn btn-primary" onclick="openCamera()" data-translate="scan-plant">📸 Scan Plant</button>
+            <button class="action-btn btn-secondary" onclick="getRecommendations()" data-translate="get-advice">💡 Get Advice</button>
+            <button class="action-btn btn-tertiary" onclick="checkWeather()" data-translate="check-weather">🌤️ Check Weather</button>
+        </div>
+
+        <!-- Weather Panel -->
+        <div id="weather-panel">
+            <h3>Weather Information</h3>
+            <p id="weather-location">Location: Detecting...</p>
+            <p id="weather-description">Description: --</p>
+            <p id="weather-temperature">Temperature: --</p>
+            <p id="weather-humidity">Humidity: --</p>
+            <p id="weather-rainfall">Rainfall: --</p>
+        </div>
+    </main>
+
+    <!-- Floating Action Button -->
+    <button class="fab" onclick="openCamera()" title="Quick Plant Scan">📷</button>
+
+    <!-- Modals -->
+    <div id="crop-modal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('crop-modal')">&times;</button>
+            <h2 data-translate="crop-recommendations">Crop Recommendations</h2>
+            <div id="crop-content">
+                <p data-translate="crop-modal-desc">Based on your location and soil conditions, here are our AI recommendations:</p>
+                <div style="margin: 1rem 0;">
+                    <h4>🌾 Recommended Crops:</h4>
+                    <ul>
+                        <li>Rice - High yield potential</li>
+                        <li>Wheat - Good market price</li>
+                        <li>Sugarcane - Suitable for your soil</li>
+                    </ul>
+                </div>
+                <button class="action-btn btn-primary" onclick="getDetailedRecommendations()">Get Detailed Analysis</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="weather-modal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('weather-modal')">&times;</button>
+            <h2 data-translate="weather-forecast">Weather Forecast</h2>
+            <div id="weather-content">
+                <div style="margin: 1rem 0;">
+                    <h4>7-Day Forecast:</h4>
+                    <div style="display: grid; gap: 0.5rem;">
+                        <div>Today: 🌤️ 28°C - Partly Cloudy</div>
+                        <div>Tomorrow: ☀️ 30°C - Sunny</div>
+                        <div>Day 3: 🌧️ 25°C - Light Rain</div>
+                        <div>Day 4: ⛅ 27°C - Cloudy</div>
+                        <div>Day 5: ☀️ 29°C - Sunny</div>
+                    </div>
+                </div>
+                <p><strong>Farming Advice:</strong> Good conditions for irrigation. Avoid spraying pesticides on Day 3 due to rain.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="disease-modal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('disease-modal')">&times;</button>
+            <h2 data-translate="disease-detection">Disease Detection</h2>
+            <div id="disease-content">
+                <p data-translate="disease-modal-desc">Upload a photo of your plant for instant AI analysis:</p>
+                <div style="margin: 1rem 0; text-align: center;">
+                    <input type="file" id="plant-image" accept="image/*" style="display: none;" onchange="analyzeImage()">
+                    <button class="action-btn btn-primary" onclick="document.getElementById('plant-image').click()">📷 Upload Photo</button>
+                </div>
+                <div id="analysis-result" style="display: none;">
+                    <h4>Analysis Result:</h4>
+                    <p>Plant appears healthy! No diseases detected.</p>
+                    <p><strong>Recommendations:</strong> Continue current care routine.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="market-modal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('market-modal')">&times;</button>
+            <h2 data-translate="market-prices">Market Prices</h2>
+            <div id="market-content">
+                <h4>Today's Prices (per quintal):</h4>
+                <div style="margin: 1rem 0;">
+                    <div style="display: grid; gap: 0.5rem;">
+                        <div>🌾 Rice: ₹2,100 (↑ 2%)</div>
+                        <div>🌽 Wheat: ₹1,950 (↓ 1%)</div>
+                        <div>🥔 Potato: ₹1,200 (↑ 5%)</div>
+                        <div>🧅 Onion: ₹800 (↑ 8%)</div>
+                        <div>🍅 Tomato: ₹1,500 (↓ 3%)</div>
+                    </div>
+                </div>
+                <p><strong>Market Trend:</strong> Vegetable prices are rising due to seasonal demand. Good time to sell onions and potatoes.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Language translations
+        const translations = {
+            en: {
+                'app-title': 'Dhanya Assist',
+                'welcome-title': 'Smart Farming Assistant',
+                'welcome-subtitle': 'AI-powered agricultural guidance for better crops and higher yields',
+                'weather-title': 'Today\'s Weather',
+                'weather-temp': '28°C',
+                'weather-humidity': 'Humidity: 65%',
+                'weather-condition': 'Partly Cloudy - Good for farming activities',
+                'crop-recommendations': 'Crop Recommendations',
+                'crop-desc': 'Get AI-powered suggestions for the best crops based on your soil, climate, and market conditions.',
+                'weather-forecast': 'Weather Forecast',
+                'weather-desc': '7-day detailed weather predictions with farming-specific insights and alerts.',
+                'disease-detection': 'Disease Detection',
+                'disease-desc': 'Upload plant photos for instant AI-powered disease identification and treatment recommendations.',
+                'market-prices': 'Market Prices',
+                'market-desc': 'Real-time crop prices and market trends to help you make informed selling decisions.',
+                'scan-plant': '📸 Scan Plant',
+                'get-advice': '💡 Get Advice',
+                'check-weather': '🌤️ Check Weather',
+                'crop-modal-desc': 'Based on your location and soil conditions, here are our AI recommendations:',
+                'disease-modal-desc': 'Upload a photo of your plant for instant AI analysis:'
+            },
+            hi: {
+                'app-title': 'धान्य असिस्ट',
+                'welcome-title': 'स्मार्ट कृषि सहायक',
+                'welcome-subtitle': 'बेहतर फसल और अधिक उत्पादन के लिए AI-संचालित कृषि मार्गदर्शन',
+                'weather-title': 'आज का मौसम',
+                'weather-temp': '28°C',
+                'weather-humidity': 'नमी: 65%',
+                'weather-condition': 'आंशिक बादल - कृषि गतिविधियों के लिए अच्छा',
+                'crop-recommendations': 'फसल सिफारिशें',
+                'crop-desc': 'अपनी मिट्टी, जलवायु और बाजार की स्थितियों के आधार पर सर्वोत्तम फसलों के लिए AI-संचालित सुझाव प्राप्त करें।',
+                'weather-forecast': 'मौसम पूर्वानुमान',
+                'weather-desc': 'कृषि-विशिष्ट अंतर्दृष्टि और अलर्ट के साथ 7-दिन का विस्तृत मौसम पूर्वानुमान।',
+                'disease-detection': 'रोग का पता लगाना',
+                'disease-desc': 'तत्काल AI-संचालित रोग पहचान और उपचार सिफारिशों के लिए पौधों की तस्वीरें अपलोड करें।',
+                'market-prices': 'बाजार की कीमतें',
+                'market-desc': 'सूचित बिक्री निर्णय लेने में आपकी सहायता के लिए वास्तविक समय की फसल कीमतें और बाजार के रुझान।',
+                'scan-plant': '📸 पौधा स्कैन करें',
+                'get-advice': '💡 सलाह लें',
+                'check-weather': '🌤️ मौसम जांचें',
+                'crop-modal-desc': 'आपके स्थान और मिट्टी की स्थिति के आधार पर, यहाँ हमारी AI सिफारिशें हैं:',
+                'disease-modal-desc': 'तत्काल AI विश्लेषण के लिए अपने पौधे की तस्वीर अपलोड करें:'
+            },
+            kn: {
+                'app-title': 'ಧಾನ್ಯ ಅಸಿಸ್ಟ್',
+                'welcome-title': 'ಸ್ಮಾರ್ಟ್ ಕೃಷಿ ಸಹಾಯಕ',
+                'welcome-subtitle': 'ಉತ್ತಮ ಬೆಳೆಗಳು ಮತ್ತು ಹೆಚ್ಚಿನ ಇಳುವರಿಗಾಗಿ AI-ಚಾಲಿತ ಕೃಷಿ ಮಾರ್ಗದರ್ಶನ',
+                'weather-title': 'ಇಂದಿನ ಹವಾಮಾನ',
+                'weather-temp': '28°C',
+                'weather-humidity': 'ಆರ್ದ್ರತೆ: 65%',
+                'weather-condition': 'ಭಾಗಶಃ ಮೋಡ - ಕೃಷಿ ಚಟುವಟಿಕೆಗಳಿಗೆ ಒಳ್ಳೆಯದು',
+                'crop-recommendations': 'ಬೆಳೆ ಶಿಫಾರಸುಗಳು',
+                'crop-desc': 'ನಿಮ್ಮ ಮಣ್ಣು, ಹವಾಮಾನ ಮತ್ತು ಮಾರುಕಟ್ಟೆ ಪರಿಸ್ಥಿತಿಗಳ ಆಧಾರದ ಮೇಲೆ ಅತ್ಯುತ್ತಮ ಬೆಳೆಗಳಿಗಾಗಿ AI-ಚಾಲಿತ ಸಲಹೆಗಳನ್ನು ಪಡೆಯಿರಿ.',
+                'weather-forecast': 'ಹವಾಮಾನ ಮುನ್ಸೂಚನೆ',
+                'weather-desc': 'ಕೃಷಿ-ನಿರ್ದಿಷ್ಟ ಒಳನೋಟಗಳು ಮತ್ತು ಎಚ್ಚರಿಕೆಗಳೊಂದಿಗೆ 7-ದಿನಗಳ ವಿವರವಾದ ಹವಾಮಾನ ಮುನ್ಸೂಚನೆಗಳು.',
+                'disease-detection': 'ರೋಗ ಪತ್ತೆ',
+                'disease-desc': 'ತ್ವರಿತ AI-ಚಾಲಿತ ರೋಗ ಗುರುತಿಸುವಿಕೆ ಮತ್ತು ಚಿಕಿತ್ಸೆ ಶಿಫಾರಸುಗಳಿಗಾಗಿ ಸಸ್ಯ ಫೋಟೋಗಳನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿ.',
+                'market-prices': 'ಮಾರುಕಟ್ಟೆ ಬೆಲೆಗಳು',
+                'market-desc': 'ತಿಳುವಳಿಕೆಯುಳ್ಳ ಮಾರಾಟ ನಿರ್ಧಾರಗಳನ್ನು ತೆಗೆದುಕೊಳ್ಳಲು ನಿಮಗೆ ಸಹಾಯ ಮಾಡಲು ನೈಜ-ಸಮಯದ ಬೆಳೆ ಬೆಲೆಗಳು ಮತ್ತು ಮಾರುಕಟ್ಟೆ ಪ್ರವೃತ್ತಿಗಳು.',
+                'scan-plant': '📸 ಸಸ್ಯ ಸ್ಕ್ಯಾನ್',
+                'get-advice': '💡 ಸಲಹೆ ಪಡೆಯಿರಿ',
+                'check-weather': '🌤️ ಹವಾಮಾನ ಪರಿಶೀಲಿಸಿ',
+                'crop-modal-desc': 'ನಿಮ್ಮ ಸ್ಥಳ ಮತ್ತು ಮಣ್ಣಿನ ಪರಿಸ್ಥಿತಿಗಳ ಆಧಾರದ ಮೇಲೆ, ಇಲ್ಲಿ ನಮ್ಮ AI ಶಿಫಾರಸುಗಳಿವೆ:',
+                'disease-modal-desc': 'ತ್ವರಿತ AI ವಿಶ್ಲೇಷಣೆಗಾಗಿ ನಿಮ್ಮ ಸಸ್ಯದ ಫೋಟೋವನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿ:'
+            }
+        };
+
+        let currentLang = 'en';
+        let isDarkMode = false;
+
+        // Language switching
+        function switchLanguage(lang) {
+            currentLang = lang;
+            
+            // Update active language button
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.lang === lang) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Update all translatable elements
+            document.querySelectorAll('[data-translate]').forEach(element => {
+                const key = element.dataset.translate;
+                if (translations[lang] && translations[lang][key]) {
+                    element.textContent = translations[lang][key];
+                }
+            });
+        }
+
+        // Theme toggle
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark', isDarkMode);
+            localStorage.setItem('darkMode', isDarkMode);
+        }
+
+        // Modal functions
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        // Feature functions
+        function openCamera() {
+            openModal('disease-modal');
+        }
+
+        function getRecommendations() {
+            openModal('crop-modal');
+            
+            // Get location and send recommendation request
+            getLocationAndSend(function(coords) {
+                const payload = {
+                    soil_type: 'loamy', // Default, could be from a form
+                    ph_level: 6.5,
+                    nitrogen: 50,
+                    phosphorus: 30,
+                    potassium: 40,
+                    temperature: 28,
+                    humidity: 65,
+                    rainfall: 100
+                };
+                
+                // Add coordinates if available
+                if (coords) {
+                    payload.latitude = coords.lat;
+                    payload.longitude = coords.lon;
+                }
+                
+                // Show loading state
+                const content = document.getElementById('crop-content');
+                content.innerHTML = `
+                    <div class="loading"></div>
+                    <p>Getting AI-powered crop recommendations...</p>
+                `;
+                
+                // Call Flask backend
+                fetch('/recommend', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        displayRecommendations(data.recommendations);
+                    } else {
+                        content.innerHTML = `
+                            <p>Sorry, we couldn't generate recommendations at this time.</p>
+                            <p>Error: ${data.message || 'Unknown error'}</p>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Recommendation error:', error);
+                    content.innerHTML = `
+                        <p>Network error. Please check your connection and try again.</p>
+                    `;
+                });
+            });
+        }
+        
+        function displayRecommendations(recommendations) {
+            const content = document.getElementById('crop-content');
+            let html = '<h4>🌾 AI Crop Recommendations:</h4>';
+            
+            if (recommendations && recommendations.length > 0) {
+                html += '<div style="margin: 1rem 0;">';
+                recommendations.forEach((rec, index) => {
+                    html += `
+                        <div style="margin-bottom: 1rem; padding: 1rem; border: 1px solid var(--border); border-radius: 8px;">
+                            <h5>${rec.crop || `Crop ${index + 1}`}</h5>
+                            <p><strong>Confidence:</strong> ${rec.confidence || 'N/A'}%</p>
+                            <p><strong>Expected Yield:</strong> ${rec.yield_estimate || 'N/A'}</p>
+                            <p><strong>Profit Estimate:</strong> ${rec.profit_estimate || 'N/A'}</p>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            } else {
+                html += '<p>No specific recommendations available.</p>';
+            }
+            
+            html += '<button class="action-btn btn-primary" onclick="getDetailedRecommendations()">Get Detailed Analysis</button>';
+            content.innerHTML = html;
+        }
+
+        function checkWeather() {
+            openModal('weather-modal');
+            
+            // Show loading state
+            const content = document.getElementById('weather-content');
+            content.innerHTML = `
+                <div class="loading"></div>
+                <p>Fetching weather data...</p>
+            `;
+            
+            // Get location for weather
+            getLocationAndSend(function(coords) {
+                const params = new URLSearchParams();
+                if (coords) {
+                    params.append('lat', coords.lat);
+                    params.append('lon', coords.lon);
+                }
+                
+                fetch('/weather?' + params.toString())
+                .then(response => response.json())
+                .then(data => {
+                    displayWeatherForecast(data);
+                })
+                .catch(error => {
+                    console.error('Weather error:', error);
+                    content.innerHTML = `
+                        <p>Unable to fetch weather data. Please try again.</p>
+                    `;
+                });
+            });
+        }
+        
+        function displayWeatherForecast(weatherData) {
+            const content = document.getElementById('weather-content');
+            let html = '<h4>🌤️ Current Weather:</h4>';
+            
+            // Show location if available
+            if (weatherData.location && weatherData.country) {
+                html += `<p>📍 <strong>Location:</strong> ${weatherData.location}, ${weatherData.country}</p>`;
+            }
+            
+            if (weatherData.temperature) {
+                html += `
+                    <div style="margin: 1rem 0;">
+                        <p>🌡️ <strong>Temperature:</strong> ${weatherData.temperature}°C</p>
+                        <p>💧 <strong>Humidity:</strong> ${weatherData.humidity}%</p>
+                        <p>🌧️ <strong>Rainfall:</strong> ${weatherData.rainfall || 0}mm</p>
+                        <p>☁️ <strong>Conditions:</strong> ${weatherData.description || 'N/A'}</p>
+                `;
+                
+                // Add additional weather info if available
+                if (weatherData.wind_speed) {
+                    html += `<p>💨 <strong>Wind Speed:</strong> ${weatherData.wind_speed} m/s</p>`;
+                }
+                if (weatherData.pressure) {
+                    html += `<p>🔽 <strong>Pressure:</strong> ${weatherData.pressure} hPa</p>`;
+                }
+                if (weatherData.sunrise && weatherData.sunset) {
+                    html += `<p>🌅 <strong>Sunrise:</strong> ${weatherData.sunrise} | 🌇 <strong>Sunset:</strong> ${weatherData.sunset}</p>`;
+                }
+                
+                html += `</div>`;
+            }
+            
+            // Add farming advice based on weather conditions
+            let farmingAdvice = "Monitor weather conditions for optimal farming activities.";
+            if (weatherData.temperature) {
+                if (weatherData.temperature > 35) {
+                    farmingAdvice = "High temperature alert! Ensure adequate irrigation and avoid midday farming activities.";
+                } else if (weatherData.temperature < 10) {
+                    farmingAdvice = "Low temperature warning! Protect sensitive crops from frost damage.";
+                } else if (weatherData.humidity > 80) {
+                    farmingAdvice = "High humidity detected. Monitor crops for fungal diseases and ensure proper ventilation.";
+                } else if (weatherData.description && weatherData.description.toLowerCase().includes('rain')) {
+                    farmingAdvice = "Rainy conditions detected. Good for water-loving crops but ensure proper drainage.";
+                } else {
+                    farmingAdvice = "Good weather conditions for most farming activities.";
+                }
+            }
+            
+            html += `<div style="background: rgba(34, 197, 94, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem;">`;
+            html += `<p><strong>🌾 Farming Advice:</strong> ${farmingAdvice}</p>`;
+            html += `</div>`;
+            
+            // Show error message if API failed but we have fallback data
+            if (weatherData.error) {
+                html += `<div style="background: rgba(234, 179, 8, 0.1); padding: 1rem; border-radius: 8px; margin-top: 1rem;">`;
+                html += `<p><strong>⚠️ Note:</strong> Using fallback weather data. ${weatherData.error}</p>`;
+                html += `</div>`;
+            }
+            
+            content.innerHTML = html;
+        }
+        
+        // Update weather widget on page load
+        function updateWeatherWidget() {
+            // Try to get user location first for weather widget
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    
+                    fetch(`/weather?lat=${lat}&lon=${lon}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        // Update the main weather widget if elements exist
+                        const tempElement = document.querySelector('[data-translate="weather-temp"]');
+                        const humidityElement = document.querySelector('[data-translate="weather-humidity"]');
+                        const conditionElement = document.querySelector('[data-translate="weather-condition"]');
+                        
+                        if (tempElement && data.temperature) {
+                            tempElement.textContent = `${data.temperature}°C`;
+                        }
+                        if (humidityElement && data.humidity) {
+                            humidityElement.textContent = `Humidity: ${data.humidity}%`;
+                        }
+                        if (conditionElement && data.description) {
+                            conditionElement.textContent = data.description;
+                        }
+                        
+                        // Update weather widget header with location
+                        const weatherContent = document.querySelector('.weather-content');
+                        if (weatherContent && data.location && data.country) {
+                            const locationElement = weatherContent.querySelector('h3') || weatherContent.querySelector('h2');
+                            if (locationElement) {
+                                locationElement.textContent = `🌤️ Weather in ${data.location}`;
+                            }
+                        }
+                    })
+                    .catch(error => console.warn('Weather widget update failed:', error));
+                }, function(error) {
+                    console.warn('Geolocation failed for weather widget:', error);
+                    // Fallback - no location specific weather for widget
+                });
+            }
+        }
+
+        function analyzeImage() {
+            const fileInput = document.getElementById('plant-image');
+            const resultDiv = document.getElementById('analysis-result');
+            
+            if (!fileInput.files[0]) {
+                alert('Please select an image first.');
+                return;
+            }
+            
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = `
+                <div class="loading"></div>
+                <p>Analyzing plant image with AI...</p>
+            `;
+            
+            // Create FormData for file upload
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            
+            // Send to Flask backend
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success' && data.diagnosis) {
+                    displayDiagnosisResult(data.diagnosis);
+                } else {
+                    resultDiv.innerHTML = `
+                        <h4>Analysis Result:</h4>
+                        <p>❌ ${data.error || data.message || 'Unable to analyze image'}</p>
+                        <p><strong>Recommendations:</strong> Please try with a clearer image of the plant.</p>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Image analysis error:', error);
+                resultDiv.innerHTML = `
+                    <h4>Analysis Result:</h4>
+                    <p>❌ Network error during analysis. Please try again.</p>
+                `;
+            });
+        }
+        
+        function displayDiagnosisResult(diagnosis) {
+            const resultDiv = document.getElementById('analysis-result');
+            let statusIcon = '🟢';
+            
+            // Determine status icon based on diagnosis
+            if (diagnosis.disease && diagnosis.disease.toLowerCase() !== 'healthy') {
+                statusIcon = '🟡';
+                if (diagnosis.confidence && diagnosis.confidence < 50) {
+                    statusIcon = '🔴';
+                }
+            }
+            
+            resultDiv.innerHTML = `
+                <h4>Analysis Result:</h4>
+                <p>${statusIcon} <strong>Diagnosis:</strong> ${diagnosis.disease || 'Unknown condition'}</p>
+                <p><strong>Confidence:</strong> ${diagnosis.confidence || 'N/A'}%</p>
+                ${diagnosis.treatment ? `<p><strong>Treatment:</strong> ${diagnosis.treatment}</p>` : ''}
+                ${diagnosis.prevention ? `<p><strong>Prevention:</strong> ${diagnosis.prevention}</p>` : ''}
+                <div style="margin-top: 1rem;">
+                    <button class="action-btn btn-secondary" onclick="getDetailedAnalysis()">Get Detailed Report</button>
+                </div>
+            `;
+        }
+
+        function getDetailedRecommendations() {
+            const content = document.getElementById('crop-content');
+            content.innerHTML = `
+                <div class="loading"></div>
+                <p>Analyzing your farm data...</p>
+            `;
+            
+            setTimeout(() => {
+                content.innerHTML = `
+                    <h4>🌾 Detailed Crop Analysis:</h4>
+                    <div style="margin: 1rem 0;">
+                        <h5>Recommended for your area:</h5>
+                        <ul>
+                            <li><strong>Rice (Basmati)</strong> - Expected yield: 45 quintals/hectare</li>
+                            <li><strong>Wheat (HD-2967)</strong> - Market price trending up</li>
+                            <li><strong>Sugarcane</strong> - High water availability in your region</li>
+                        </ul>
+                        <h5>Soil recommendations:</h5>
+                        <p>Your soil pH is optimal for cereal crops. Consider adding organic matter before next season.</p>
+                        <h5>Best planting time:</h5>
+                        <p>Next 2 weeks are ideal for rice plantation based on weather forecast.</p>
+                    </div>
+                    <button class="action-btn btn-primary" onclick="downloadReport()">Download Full Report</button>
+                `;
+            }, 3000);
+        }
+
+        function getDetailedAnalysis() {
+            alert('Detailed report will be sent to your registered mobile number via SMS.');
+        }
+
+        function downloadReport() {
+            alert('Report downloaded successfully! Check your downloads folder.');
+        }
+
+        // Minimal geolocation helper to include lat/lon with requests
+        function getLocationAndSend(callback) {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    let lat = position.coords.latitude;
+                    let lon = position.coords.longitude;
+                    // Call the provided callback with {lat, lon}
+                    if (typeof callback === 'function') callback({lat: lat, lon: lon});
+                }, function(err) {
+                    console.warn('Geolocation error:', err.message);
+                    if (typeof callback === 'function') callback(null);
+                });
+            } else {
+                alert("Geolocation is not supported by this browser.");
+                if (typeof callback === 'function') callback(null);
+            }
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load saved theme
+            const savedTheme = localStorage.getItem('darkMode');
+            if (savedTheme === 'true') {
+                toggleTheme();
+            }
+
+            // Language selector events
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    switchLanguage(btn.dataset.lang);
+                });
+            });
+
+            // Close modals when clicking outside
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        closeModal(modal.id);
+                    }
+                });
+            });
+
+            // Initialize weather widget with real data
+            updateWeatherWidget();
+            
+            // Update weather widget every 5 minutes
+            setInterval(updateWeatherWidget, 300000);
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal').forEach(modal => {
+                    if (modal.style.display === 'block') {
+                        closeModal(modal.id);
+                    }
+                });
+            }
+            
+            // Language shortcuts
+            if (e.ctrlKey) {
+                switch(e.key) {
+                    case '1': switchLanguage('en'); break;
+                    case '2': switchLanguage('hi'); break;
+                    case '3': switchLanguage('kn'); break;
+                }
+            }
+        });
+
+        // Add JavaScript for location detection
+        document.addEventListener('DOMContentLoaded', function () {
+            const map = L.map('map').setView([20.5937, 78.9629], 5); // Default to India
+
+            // Add OpenStreetMap tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+            }).addTo(map);
+
+            // Detect user's location
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function (position) {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+
+                    // Update map with user's location
+                    const userMarker = L.marker([lat, lon]).addTo(map);
+                    map.setView([lat, lon], 13);
+
+                    // Add a popup to the marker
+                    userMarker.bindPopup(`📍 Your Location<br>Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`).openPopup();
+
+                    // Update weather panel with location (initially with coordinates)
+                    document.getElementById('weather-location').textContent = `📍 Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+
+                    // Fetch weather data for the location
+                    fetch(`/weather?lat=${lat}&lon=${lon}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.error) {
+                                console.error('Weather API Error:', data.error);
+                                // Still update with available data
+                            }
+                            
+                            // Update weather panel with real data and location name
+                            if (data.location && data.country) {
+                                document.getElementById('weather-location').textContent = `📍 ${data.location}, ${data.country}`;
+                                // Update marker popup with location name
+                                userMarker.bindPopup(`📍 ${data.location}, ${data.country}<br>Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`);
+                            }
+                            
+                            document.getElementById('weather-description').textContent = data.description || 'N/A';
+                            document.getElementById('weather-temperature').textContent = `${data.temperature || 'N/A'}°C`;
+                            document.getElementById('weather-humidity').textContent = `${data.humidity || 'N/A'}%`;
+                            document.getElementById('weather-rainfall').textContent = `${data.rainfall || 0}mm`;
+                            
+                            // Add additional weather info if available
+                            if (data.wind_speed) {
+                                const windInfo = document.createElement('p');
+                                windInfo.id = 'weather-wind';
+                                windInfo.textContent = `Wind Speed: ${data.wind_speed} m/s`;
+                                document.getElementById('weather-panel').appendChild(windInfo);
+                            }
+                            
+                            if (data.pressure) {
+                                const pressureInfo = document.createElement('p');
+                                pressureInfo.id = 'weather-pressure';
+                                pressureInfo.textContent = `Pressure: ${data.pressure} hPa`;
+                                document.getElementById('weather-panel').appendChild(pressureInfo);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching weather data:', error);
+                            document.getElementById('weather-location').textContent = `📍 Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)} (Weather unavailable)`;
+                        });
+                }, function(error) {
+                    console.error('Geolocation error:', error);
+                    document.getElementById('weather-location').textContent = '📍 Location detection failed';
+                    alert('Unable to detect your location. Please allow location access for better experience.');
+                });
+            } else {
+                alert('Geolocation is not supported by your browser.');
+                document.getElementById('weather-location').textContent = '📍 Geolocation not supported';
+            }
+        });
+    </script>
+</body>
+</html>

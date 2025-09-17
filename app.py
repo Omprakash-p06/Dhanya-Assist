@@ -2,12 +2,32 @@ from flask import Flask, render_template, request, jsonify, session
 import os
 import json
 from dotenv import load_dotenv
+from utils.ml_model import crop_model
+from utils.weather import WeatherService
+from utils.soil import SoilService
+from utils.vision import VisionService
+from db.init_db import init_database, save_user_session, save_crop_prediction
+
+# Set working directory to the script's directory
+script_dir = os.path.dirname(os.path.abspath(__file__))
+os.chdir(script_dir)
 
 # Load environment variables
 load_dotenv()
 
+# Initialize database
+init_database()
+
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'dhanya-assist-secret-key-2024')
+
+# Initialize services
+weather_service = WeatherService()
+soil_service = SoilService() 
+vision_service = VisionService()
+
+# Load ML model
+crop_model.load_model()
 
 # Language configuration
 LANGUAGES = {
@@ -21,10 +41,12 @@ def load_translations():
     translations = {}
     for lang_code in LANGUAGES.keys():
         try:
-            with open(f'translations/{lang_code}.json', 'r', encoding='utf-8') as f:
+            translation_file = os.path.join(script_dir, 'translations', f'{lang_code}.json')
+            with open(translation_file, 'r', encoding='utf-8') as f:
                 translations[lang_code] = json.load(f)
+                print(f"✅ Translation file loaded: {lang_code}.json")
         except FileNotFoundError:
-            print(f"Translation file not found: {lang_code}.json")
+            print(f"⚠️ Translation file not found: {lang_code}.json")
             translations[lang_code] = {}
     return translations
 
@@ -55,54 +77,90 @@ def set_language(lang):
 
 @app.route('/recommend', methods=['POST'])
 def recommend_crops():
-    """API endpoint for crop recommendations"""
+    """Enhanced crop recommendation with ML model"""
     current_lang = session.get('language', 'en')
+    session_id = session.get('session_id', 'anonymous')
     
-    # Get input data
-    data = request.get_json()
-    
-    # Mock response for MVP (replace with actual ML model later)
-    mock_recommendations = [
-        {
-            'crop': get_text('crop_rice', current_lang),
-            'confidence': 85,
-            'yield_estimate': '4.5 tons/hectare',
-            'profit_estimate': '₹45,000/hectare'
-        },
-        {
-            'crop': get_text('crop_wheat', current_lang),
-            'confidence': 78,
-            'yield_estimate': '3.8 tons/hectare',
-            'profit_estimate': '₹38,000/hectare'
-        },
-        {
-            'crop': get_text('crop_sugarcane', current_lang),
-            'confidence': 72,
-            'yield_estimate': '65 tons/hectare',
-            'profit_estimate': '₹85,000/hectare'
-        }
-    ]
-    
-    return jsonify({
-        'status': 'success',
-        'recommendations': mock_recommendations,
-        'message': get_text('recommendations_ready', current_lang)
-    })
+    try:
+        # Get input data
+        data = request.get_json()
+        
+        # Use ML model for predictions
+        recommendations = crop_model.predict_crop(data)
+        
+        # Save prediction to database
+        save_crop_prediction(session_id, data, recommendations)
+        
+        return jsonify({
+            'status': 'success',
+            'recommendations': recommendations,
+            'message': get_text('recommendations_ready', current_lang)
+        })
+        
+    except Exception as e:
+        print(f"Recommendation error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': 'Unable to generate recommendations',
+            'recommendations': []
+        })
 
 @app.route('/weather')
 def get_weather():
     """Get weather data for location"""
-    # Mock weather data for MVP
     current_lang = session.get('language', 'en')
-    
-    mock_weather = {
-        'temperature': 28,
-        'humidity': 65,
-        'rainfall': 12,
-        'description': get_text('weather_desc', current_lang)
-    }
-    
-    return jsonify(mock_weather)
+
+    # Get latitude and longitude from query parameters with defaults
+    lat = request.args.get('lat', type=float)
+    lon = request.args.get('lon', type=float)
+
+    # If no coordinates provided, use default location (India center)
+    if lat is None or lon is None:
+        lat = 20.5937  # India center latitude
+        lon = 78.9629  # India center longitude
+
+    try:
+        # Use real weather service
+        weather_result = weather_service.get_current_weather(lat, lon)
+        
+        if weather_result['success']:
+            weather_data = weather_result['data']
+            return jsonify({
+                'temperature': weather_data['temperature'],
+                'humidity': weather_data['humidity'],
+                'rainfall': 0,  # OpenWeather doesn't provide current rainfall in basic plan
+                'description': weather_data['description'],
+                'location': weather_data['location'],
+                'country': weather_data['country'],
+                'wind_speed': weather_data['wind_speed'],
+                'pressure': weather_data['pressure'],
+                'sunrise': weather_data['sunrise'],
+                'sunset': weather_data['sunset'],
+                'icon': weather_data['icon']
+            })
+        else:
+            # Fallback to mock data if API fails
+            return jsonify({
+                'temperature': 28,
+                'humidity': 65,
+                'rainfall': 12,
+                'description': get_text('weather_desc', current_lang),
+                'location': 'Demo Location',
+                'country': 'IN',
+                'error': weather_result.get('error', 'Weather service unavailable')
+            })
+            
+    except Exception as e:
+        print(f"Weather error: {str(e)}")
+        return jsonify({
+            'temperature': 28,
+            'humidity': 65,
+            'rainfall': 12,
+            'description': get_text('weather_desc', current_lang),
+            'location': 'Demo Location',
+            'country': 'IN',
+            'error': 'Weather service error'
+        })
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
