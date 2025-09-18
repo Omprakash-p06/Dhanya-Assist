@@ -164,30 +164,75 @@ def get_weather():
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
-    """Handle crop image upload for disease detection"""
+    """Handle crop image upload for disease detection using real computer vision"""
     current_lang = session.get('language', 'en')
     
-    if 'file' not in request.files:
-        return jsonify({'error': get_text('no_file_selected', current_lang)})
-    
-    file = request.files['file']
-    
-    if file.filename == '':
-        return jsonify({'error': get_text('no_file_selected', current_lang)})
-    
-    # Mock disease detection response for MVP
-    mock_diagnosis = {
-        'disease': get_text('disease_leaf_blight', current_lang),
-        'confidence': 82,
-        'treatment': get_text('treatment_fungicide', current_lang),
-        'prevention': get_text('prevention_spacing', current_lang)
-    }
-    
-    return jsonify({
-        'status': 'success',
-        'diagnosis': mock_diagnosis,
-        'message': get_text('analysis_complete', current_lang)
-    })
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': get_text('no_file_selected', current_lang)})
+        
+        file = request.files['file']
+        
+        if file.filename == '':
+            return jsonify({'error': get_text('no_file_selected', current_lang)})
+        
+        # Use the real VisionService to analyze the uploaded image
+        analysis_result = vision_service.analyze_crop_image(file)
+        
+        if analysis_result.get('success'):
+            if analysis_result.get('object_type') == 'person':
+                return jsonify({
+                    'status': 'error',
+                    'error': 'Human detected in image',
+                    'message': analysis_result.get('recommendation', 'Please upload an image of a plant for disease analysis'),
+                    'confidence': analysis_result.get('confidence', 0),
+                    'object_type': 'person'
+                })
+            
+            elif analysis_result.get('object_type') == 'plant':
+                analysis = analysis_result.get('analysis', {})
+                return jsonify({
+                    'status': 'success',
+                    'diagnosis': {
+                        'disease': analysis.get('disease_detected', 'Unknown'),
+                        'confidence': analysis.get('confidence', 0),
+                        'crop_type': analysis.get('crop_detected', 'Unknown'),
+                        'severity': analysis.get('severity', 'Unknown'),
+                        'treatment': analysis.get('treatment_recommendations', []),
+                        'prevention': analysis.get('prevention_tips', []),
+                        'health_score': analysis.get('technical_analysis', {}).get('health_score', 0),
+                        'analysis_method': analysis.get('analysis_method', 'Computer Vision'),
+                        'image_quality': analysis.get('image_quality_assessment', 'Good')
+                    },
+                    'technical_details': analysis.get('technical_analysis', {}),
+                    'confidence_factors': analysis.get('confidence_factors', {}),
+                    'message': get_text('analysis_complete', current_lang)
+                })
+            
+            else:  # unknown object
+                return jsonify({
+                    'status': 'error',
+                    'error': 'Object not recognized',
+                    'message': analysis_result.get('recommendation', 'Please upload a clear image of a plant'),
+                    'confidence': analysis_result.get('confidence', 0),
+                    'object_type': 'unknown'
+                })
+        
+        else:
+            # Analysis failed
+            return jsonify({
+                'status': 'error',
+                'error': analysis_result.get('error', 'Image analysis failed'),
+                'message': 'Please try uploading a different image with better lighting'
+            })
+            
+    except Exception as e:
+        print(f"Upload error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'error': f'Processing failed: {str(e)}',
+            'message': 'Please try again with a different image'
+        })
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

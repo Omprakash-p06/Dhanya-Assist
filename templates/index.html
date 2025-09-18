@@ -1085,7 +1085,7 @@
             resultDiv.style.display = 'block';
             resultDiv.innerHTML = `
                 <div class="loading"></div>
-                <p>Analyzing plant image with AI...</p>
+                <p>Analyzing plant image with AI computer vision...</p>
             `;
             
             // Create FormData for file upload
@@ -1100,7 +1100,18 @@
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success' && data.diagnosis) {
-                    displayDiagnosisResult(data.diagnosis);
+                    displayDiagnosisResult(data.diagnosis, data.technical_details, data.confidence_factors);
+                } else if (data.status === 'error') {
+                    let errorIcon = data.object_type === 'person' ? '👤' : '❌';
+                    resultDiv.innerHTML = `
+                        <h4>Analysis Result:</h4>
+                        <p>${errorIcon} <strong>Detection:</strong> ${data.error}</p>
+                        <p><strong>Confidence:</strong> ${data.confidence || 0}%</p>
+                        <p><strong>Recommendation:</strong> ${data.message}</p>
+                        <div style="margin-top: 1rem;">
+                            <button class="action-btn btn-secondary" onclick="document.getElementById('plant-image').click()">Try Another Image</button>
+                        </div>
+                    `;
                 } else {
                     resultDiv.innerHTML = `
                         <h4>Analysis Result:</h4>
@@ -1118,52 +1129,101 @@
             });
         }
         
-        function displayDiagnosisResult(diagnosis) {
+        function displayDiagnosisResult(diagnosis, technicalDetails, confidenceFactors) {
             const resultDiv = document.getElementById('analysis-result');
-            let statusIcon = diagnosis.disease === 'healthy' ? '🟢' : '🔴';
             
-            // Build detailed analysis HTML
+            // Determine status icon based on disease and confidence
+            let statusIcon = '🟢';
+            let statusColor = '#22c55e';
+            
+            if (diagnosis.disease && diagnosis.disease.toLowerCase() !== 'healthy') {
+                if (diagnosis.confidence >= 70) {
+                    statusIcon = '🔴';
+                    statusColor = '#ef4444';
+                } else if (diagnosis.confidence >= 50) {
+                    statusIcon = '�';
+                    statusColor = '#eab308';
+                } else {
+                    statusIcon = '�';
+                    statusColor = '#f97316';
+                }
+            }
+            
+            // Build comprehensive analysis HTML
             let html = `
-                <h3>Analysis Result:</h3>
-                <div class="analysis-details">
-                    <p><strong>Crop Type:</strong> ${diagnosis.crop_type || 'Unknown'}</p>
-                    <p><strong>${statusIcon} Diagnosis:</strong> ${diagnosis.disease || 'Unknown'}</p>
-                    <p><strong>Confidence:</strong> ${diagnosis.confidence || 0}%</p>
-                    <p><strong>Severity:</strong> ${diagnosis.severity || 'Unknown'}</p>
-                    <p><strong>Treatment:</strong> ${diagnosis.treatment || 'Not available'}</p>
-                    <p><strong>Prevention:</strong> ${diagnosis.prevention || 'Not available'}</p>
-                </div>`;
+                <div style="border: 2px solid ${statusColor}; border-radius: 12px; padding: 1.5rem; background: #1a1a1a; color: #ffffff;">
+                    <h3 style="color: ${statusColor}; margin-bottom: 1rem;">${statusIcon} Plant Analysis Complete</h3>
+                    
+                    <div class="analysis-summary" style="margin-bottom: 1.5rem; color: #ffffff;">
+                        <p><strong>🌱 Crop Type:</strong> ${diagnosis.crop_type || 'Unknown'}</p>
+                        <p><strong>🔍 Diagnosis:</strong> ${diagnosis.disease || 'Unknown'}</p>
+                        <p><strong>📊 Confidence:</strong> ${Math.round(diagnosis.confidence || 0)}%</p>
+                        <p><strong>⚠️ Severity:</strong> ${diagnosis.severity || 'Unknown'}</p>
+                        <p><strong>💚 Health Score:</strong> ${Math.round(diagnosis.health_score || 0)}/100</p>
+                        <p><strong>🔬 Analysis Method:</strong> ${diagnosis.analysis_method || 'Computer Vision'}</p>
+                        <p><strong>📷 Image Quality:</strong> ${diagnosis.image_quality || 'Good'}</p>
+                    </div>`;
 
-            if (diagnosis.analysis) {
+            // Treatment recommendations
+            if (diagnosis.treatment && Array.isArray(diagnosis.treatment) && diagnosis.treatment.length > 0) {
                 html += `
-                    <div class="analysis-metrics">
-                        <h4>Detailed Metrics:</h4>
-                        <ul>
-                            <li>Leaf Health: ${diagnosis.analysis.leaf_health}%</li>
-                            <li>Disease Spots: ${diagnosis.analysis.disease_spots}%</li>
-                            <li>Overall Condition: ${diagnosis.analysis.overall_condition}%</li>
+                    <div class="treatment-section" style="margin-bottom: 1.5rem;">
+                        <h4 style="color: #22c55e;">💊 Treatment Recommendations:</h4>
+                        <ul style="margin-left: 1rem; color: #ffffff;">
+                            ${diagnosis.treatment.map(t => `<li>${t}</li>`).join('')}
                         </ul>
                     </div>`;
             }
 
-            resultDiv.innerHTML = html;
-            if (diagnosis.disease && diagnosis.disease.toLowerCase() !== 'healthy') {
-                statusIcon = '🟡';
-                if (diagnosis.confidence && diagnosis.confidence < 50) {
-                    statusIcon = '🔴';
-                }
+            // Prevention tips
+            if (diagnosis.prevention && Array.isArray(diagnosis.prevention) && diagnosis.prevention.length > 0) {
+                html += `
+                    <div class="prevention-section" style="margin-bottom: 1.5rem;">
+                        <h4 style="color: #06b6d4;">🛡️ Prevention Tips:</h4>
+                        <ul style="margin-left: 1rem; color: #ffffff;">
+                            ${diagnosis.prevention.map(p => `<li>${p}</li>`).join('')}
+                        </ul>
+                    </div>`;
             }
-            
-            resultDiv.innerHTML = `
-                <h4>Analysis Result:</h4>
-                <p>${statusIcon} <strong>Diagnosis:</strong> ${diagnosis.disease || 'Unknown condition'}</p>
-                <p><strong>Confidence:</strong> ${diagnosis.confidence || 'N/A'}%</p>
-                ${diagnosis.treatment ? `<p><strong>Treatment:</strong> ${diagnosis.treatment}</p>` : ''}
-                ${diagnosis.prevention ? `<p><strong>Prevention:</strong> ${diagnosis.prevention}</p>` : ''}
-                <div style="margin-top: 1rem;">
-                    <button class="action-btn btn-secondary" onclick="getDetailedAnalysis()">Get Detailed Report</button>
+
+            // Technical details
+            if (technicalDetails) {
+                html += `
+                    <div class="technical-section" style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                        <h4 style="color: #cbd5e1;">📈 Technical Analysis:</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.5rem; font-size: 0.9rem; color: #ffffff;">
+                            <p>Green Vegetation: ${Math.round((technicalDetails.green_vegetation_ratio || 0) * 100)}%</p>
+                            <p>Diseased Areas: ${Math.round((technicalDetails.diseased_area_ratio || 0) * 100)}%</p>
+                            <p>Chlorosis: ${Math.round((technicalDetails.chlorosis_ratio || 0) * 100)}%</p>
+                            <p>Brightness: ${Math.round((technicalDetails.brightness_level || 0) * 100)}%</p>
+                            <p>Texture Score: ${Math.round((technicalDetails.texture_complexity || 0) * 100)}</p>
+                        </div>
+                    </div>`;
+            }
+
+            // Confidence factors
+            if (confidenceFactors) {
+                html += `
+                    <div class="confidence-section" style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                        <h4 style="color: #cbd5e1;">🎯 Confidence Factors:</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.5rem; font-size: 0.9rem; color: #ffffff;">
+                            <p>Color Analysis: ${Math.round(confidenceFactors.color_analysis_confidence || 0)}%</p>
+                            <p>Texture Analysis: ${Math.round(confidenceFactors.texture_analysis_confidence || 0)}%</p>
+                            <p>Spot Detection: ${Math.round(confidenceFactors.spot_detection_confidence || 0)}%</p>
+                        </div>
+                    </div>`;
+            }
+
+            // Action buttons
+            html += `
+                <div class="action-buttons" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button class="action-btn btn-secondary" onclick="getDetailedAnalysis()">📋 Detailed Report</button>
+                    <button class="action-btn btn-tertiary" onclick="document.getElementById('plant-image').click()">📷 Analyze Another</button>
+                    <button class="action-btn btn-primary" onclick="downloadReport()">💾 Download Report</button>
                 </div>
-            `;
+            </div>`;
+
+            resultDiv.innerHTML = html;
         }
 
         function getDetailedRecommendations() {
