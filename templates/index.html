@@ -540,9 +540,9 @@
             </div>
             
             <div class="theme-toggle" onclick="toggleTheme()">
-                <span data-translate="theme">🌙</span>
-                <div class="toggle-switch"></div>
                 <span data-translate="theme">☀️</span>
+                <div class="toggle-switch"></div>
+                <span data-translate="theme">🌙</span>
             </div>
         </div>
     </header>
@@ -618,15 +618,6 @@
             <button class="action-btn btn-tertiary" onclick="checkWeather()" data-translate="check-weather">🌤️ Check Weather</button>
         </div>
 
-        <!-- Weather Panel -->
-        <div id="weather-panel">
-            <h3>Weather Information</h3>
-            <p id="weather-location">Location: Detecting...</p>
-            <p id="weather-description">Description: --</p>
-            <p id="weather-temperature">Temperature: --</p>
-            <p id="weather-humidity">Humidity: --</p>
-            <p id="weather-rainfall">Rainfall: --</p>
-        </div>
     </main>
 
     <!-- Floating Action Button -->
@@ -1007,44 +998,78 @@
         
         // Update weather widget on page load
         function updateWeatherWidget() {
-            // Try to get user location first for weather widget
+            const weatherPanel = document.querySelector('.weather-widget');
+            if (!weatherPanel) return;
+            
+            // Show loading state
+            weatherPanel.innerHTML = `
+                <div class="weather-content">
+                    <h3>🌤️ Loading weather data...</h3>
+                    <div class="loading"></div>
+                </div>
+            `;
+            
+            // Try to get user location
             if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(function(position) {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-                    
-                    fetch(`/weather?lat=${lat}&lon=${lon}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        // Update the main weather widget if elements exist
-                        const tempElement = document.querySelector('[data-translate="weather-temp"]');
-                        const humidityElement = document.querySelector('[data-translate="weather-humidity"]');
-                        const conditionElement = document.querySelector('[data-translate="weather-condition"]');
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
                         
-                        if (tempElement && data.temperature) {
-                            tempElement.textContent = `${data.temperature}°C`;
-                        }
-                        if (humidityElement && data.humidity) {
-                            humidityElement.textContent = `Humidity: ${data.humidity}%`;
-                        }
-                        if (conditionElement && data.description) {
-                            conditionElement.textContent = data.description;
-                        }
-                        
-                        // Update weather widget header with location
-                        const weatherContent = document.querySelector('.weather-content');
-                        if (weatherContent && data.location && data.country) {
-                            const locationElement = weatherContent.querySelector('h3') || weatherContent.querySelector('h2');
-                            if (locationElement) {
-                                locationElement.textContent = `🌤️ Weather in ${data.location}`;
-                            }
-                        }
-                    })
-                    .catch(error => console.warn('Weather widget update failed:', error));
-                }, function(error) {
-                    console.warn('Geolocation failed for weather widget:', error);
-                    // Fallback - no location specific weather for widget
-                });
+                        fetch(`/weather?lat=${lat}&lon=${lon}`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.error) {
+                                    throw new Error(data.error);
+                                }
+                                
+                                // Update weather widget with real data
+                                weatherPanel.innerHTML = `
+                                    <div class="weather-content">
+                                        <h3>🌤️ Weather in ${data.location}, ${data.country}</h3>
+                                        <div class="weather-details">
+                                            <p class="temperature">${data.temperature}°C</p>
+                                            <p class="condition">${data.description}</p>
+                                            <div class="weather-metrics">
+                                                <p>💧 Humidity: ${data.humidity}%</p>
+                                                <p>💨 Wind: ${data.wind_speed} m/s</p>
+                                                <p>🌡️ Pressure: ${data.pressure} hPa</p>
+                                            </div>
+                                            <div class="sun-times">
+                                                <p>🌅 Sunrise: ${data.sunrise}</p>
+                                                <p>🌇 Sunset: ${data.sunset}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            })
+                            .catch(error => {
+                                console.error('Weather update failed:', error);
+                                weatherPanel.innerHTML = `
+                                    <div class="weather-content">
+                                        <h3>⚠️ Weather Update Failed</h3>
+                                        <p>Could not fetch weather data. Please try again later.</p>
+                                    </div>
+                                `;
+                            });
+                    },
+                    function(error) {
+                        console.error('Geolocation error:', error);
+                        weatherPanel.innerHTML = `
+                            <div class="weather-content">
+                                <h3>⚠️ Location Access Needed</h3>
+                                <p>Please enable location access to see local weather.</p>
+                            </div>
+                        `;
+                    }
+                );
+            } else {
+                weatherPanel.innerHTML = `
+                    <div class="weather-content">
+                        <h3>⚠️ Weather Unavailable</h3>
+                        <p>Your browser doesn't support geolocation.</p>
+                    </div>
+                `;
             }
         }
 
@@ -1095,9 +1120,33 @@
         
         function displayDiagnosisResult(diagnosis) {
             const resultDiv = document.getElementById('analysis-result');
-            let statusIcon = '🟢';
+            let statusIcon = diagnosis.disease === 'healthy' ? '🟢' : '🔴';
             
-            // Determine status icon based on diagnosis
+            // Build detailed analysis HTML
+            let html = `
+                <h3>Analysis Result:</h3>
+                <div class="analysis-details">
+                    <p><strong>Crop Type:</strong> ${diagnosis.crop_type || 'Unknown'}</p>
+                    <p><strong>${statusIcon} Diagnosis:</strong> ${diagnosis.disease || 'Unknown'}</p>
+                    <p><strong>Confidence:</strong> ${diagnosis.confidence || 0}%</p>
+                    <p><strong>Severity:</strong> ${diagnosis.severity || 'Unknown'}</p>
+                    <p><strong>Treatment:</strong> ${diagnosis.treatment || 'Not available'}</p>
+                    <p><strong>Prevention:</strong> ${diagnosis.prevention || 'Not available'}</p>
+                </div>`;
+
+            if (diagnosis.analysis) {
+                html += `
+                    <div class="analysis-metrics">
+                        <h4>Detailed Metrics:</h4>
+                        <ul>
+                            <li>Leaf Health: ${diagnosis.analysis.leaf_health}%</li>
+                            <li>Disease Spots: ${diagnosis.analysis.disease_spots}%</li>
+                            <li>Overall Condition: ${diagnosis.analysis.overall_condition}%</li>
+                        </ul>
+                    </div>`;
+            }
+
+            resultDiv.innerHTML = html;
             if (diagnosis.disease && diagnosis.disease.toLowerCase() !== 'healthy') {
                 statusIcon = '🟡';
                 if (diagnosis.confidence && diagnosis.confidence < 50) {

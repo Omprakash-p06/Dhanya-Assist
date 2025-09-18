@@ -5,20 +5,44 @@ from PIL import Image
 from datetime import datetime
 import random
 
-# Try to import OpenCV, but make it optional
-try:
-    import cv2
-    OPENCV_AVAILABLE = True
-except ImportError:
-    cv2 = None
-    OPENCV_AVAILABLE = False
-    print("Warning: OpenCV not available. Using basic image analysis fallback.")
+import cv2
+import numpy as np
+from datetime import datetime
+import os
+import pickle
+from PIL import Image
 
 class VisionService:
     def __init__(self):
         self.supported_formats = ['jpg', 'jpeg', 'png', 'bmp', 'tiff']
         self.max_file_size = 10 * 1024 * 1024  # 10MB
         self.classifier_rules = self._load_disease_rules()
+        
+    def _detect_plant_content(self, img_cv):
+        """Detect if the image contains plant/leaf content using color and texture analysis"""
+        try:
+            # Convert to HSV color space
+            hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
+            
+            # Define range for green color in HSV
+            lower_green = np.array([25, 40, 40])
+            upper_green = np.array([85, 255, 255])
+            
+            # Create mask for green pixels
+            mask = cv2.inRange(hsv, lower_green, upper_green)
+            green_ratio = np.sum(mask > 0) / (mask.shape[0] * mask.shape[1])
+            
+            # Calculate texture features using Laplacian
+            gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+            laplacian = cv2.Laplacian(gray, cv2.CV_64F)
+            texture_score = np.var(laplacian)
+            
+            # Return True if the image has sufficient green content and texture complexity
+            return green_ratio > 0.15 and texture_score > 100
+            
+        except Exception as e:
+            print(f"Plant detection error: {str(e)}")
+            return False
         
     def _load_disease_rules(self):
         """Load disease classification rules"""
@@ -140,7 +164,7 @@ class VisionService:
         image_array = processed_image['image_array']
         
         # Check if OpenCV is available for advanced analysis
-        if OPENCV_AVAILABLE and cv2 is not None:
+        if cv2 is not None:
             # Convert to OpenCV format for advanced analysis
             if len(image_array.shape) == 3:
                 img_cv = cv2.cvtColor(image_array, cv2.COLOR_RGB2BGR)
@@ -180,7 +204,7 @@ class VisionService:
                 'spot_detection_confidence': round(analysis_results['spot_confidence'], 1)
             },
             'recommendations': self._get_detailed_recommendations(disease_info['disease'], analysis_results),
-            'analysis_method': 'Advanced CV Analysis' if OPENCV_AVAILABLE else 'Basic Fallback Analysis'
+            'analysis_method': 'Advanced CV Analysis'
         }
         
         return analysis
@@ -388,8 +412,24 @@ class VisionService:
         """Perform comprehensive image analysis using multiple techniques"""
         try:
             # Check if OpenCV is available
-            if not OPENCV_AVAILABLE or cv2 is None:
+            if cv2 is None:
                 return self._basic_fallback_analysis(img_array)
+            
+            # Check if the image contains plant content
+            if not self._detect_plant_content(img_cv):
+                return {
+                    'success': False,
+                    'error': 'No plant or leaf detected in the image',
+                    'green_ratio': 0,
+                    'brown_spots': 0,
+                    'yellow_ratio': 0,
+                    'brightness': 0,
+                    'edge_density': 0,
+                    'health_score': 0,
+                    'color_confidence': 0,
+                    'texture_confidence': 0,
+                    'spot_confidence': 0
+                }
             
             # Convert to different color spaces for analysis
             hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
@@ -523,7 +563,7 @@ class VisionService:
     def _detect_spots_safe(self, img_cv):
         """Safe spot detection with fallback"""
         try:
-            if not OPENCV_AVAILABLE or cv2 is None or img_cv is None:
+            if cv2 is None or img_cv is None:
                 return random.randint(0, 3)  # Random fallback
             return self._detect_spots(img_cv)
         except:
@@ -532,7 +572,7 @@ class VisionService:
     def _detect_spots(self, img_cv):
         """Detect disease spots using contour analysis"""
         try:
-            if not OPENCV_AVAILABLE or cv2 is None:
+            if cv2 is None:
                 return 0
                 
             # Convert to HSV for better color detection
