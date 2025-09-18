@@ -180,16 +180,39 @@ def upload_image():
         analysis_result = vision_service.analyze_crop_image(file)
         
         if analysis_result.get('success'):
-            if analysis_result.get('object_type') == 'person':
+            object_type = analysis_result.get('object_type')
+            
+            if object_type == 'person':
                 return jsonify({
                     'status': 'error',
                     'error': 'Human detected in image',
                     'message': analysis_result.get('recommendation', 'Please upload an image of a plant for disease analysis'),
                     'confidence': analysis_result.get('confidence', 0),
-                    'object_type': 'person'
+                    'object_type': 'person',
+                    'action_required': analysis_result.get('action_required', 'Try again with a plant image')
                 })
             
-            elif analysis_result.get('object_type') == 'plant':
+            elif object_type == 'animal':
+                return jsonify({
+                    'status': 'error',
+                    'error': 'Animal detected in image',
+                    'message': analysis_result.get('recommendation', 'Please upload an image of a plant for disease analysis'),
+                    'confidence': analysis_result.get('confidence', 0),
+                    'object_type': 'animal',
+                    'action_required': analysis_result.get('action_required', 'Try again with a plant image')
+                })
+            
+            elif object_type == 'artificial':
+                return jsonify({
+                    'status': 'error',
+                    'error': 'Artificial object detected in image',
+                    'message': analysis_result.get('recommendation', 'Please upload an image of a plant for disease analysis'),
+                    'confidence': analysis_result.get('confidence', 0),
+                    'object_type': 'artificial',
+                    'action_required': analysis_result.get('action_required', 'Try again with a plant image')
+                })
+            
+            elif object_type == 'plant':
                 analysis = analysis_result.get('analysis', {})
                 return jsonify({
                     'status': 'success',
@@ -215,7 +238,9 @@ def upload_image():
                     'error': 'Object not recognized',
                     'message': analysis_result.get('recommendation', 'Please upload a clear image of a plant'),
                     'confidence': analysis_result.get('confidence', 0),
-                    'object_type': 'unknown'
+                    'object_type': 'unknown',
+                    'action_required': analysis_result.get('action_required', 'Try again with a clearer plant image'),
+                    'troubleshooting_tips': analysis_result.get('troubleshooting_tips', [])
                 })
         
         else:

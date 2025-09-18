@@ -34,9 +34,26 @@ class VisionService:
             return None
     
     def _detect_object_type(self, img_cv):
-        """Detect if image contains a person or plant using computer vision"""
+        """Enhanced object detection for persons, animals, plants, and other objects"""
         try:
-            # First check for human faces
+            detection_results = []
+            
+            # First check for significant green content (strong plant indicator)
+            hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
+            green_mask = cv2.inRange(hsv, np.array([25, 40, 40]), np.array([85, 255, 255]))
+            green_ratio = np.sum(green_mask > 0) / (img_cv.shape[0] * img_cv.shape[1])
+            
+            # If there's significant green content, prioritize plant detection
+            if green_ratio > 0.2:
+                plant_confidence = self._analyze_plant_features_enhanced(img_cv)
+                if plant_confidence > 0.15:  # Lower threshold for green-heavy images
+                    return {
+                        'object_type': 'plant',
+                        'confidence': min(plant_confidence * 100 + 10, 95),  # Boost confidence
+                        'details': f'High green content detected ({green_ratio:.2%}) - Plant features confirmed'
+                    }
+            
+            # 1. Human face detection (highest priority for clear faces)
             if self.face_cascade is not None:
                 gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
                 faces = self.face_cascade.detectMultiScale(gray, 1.1, 4)
@@ -44,33 +61,57 @@ class VisionService:
                 if len(faces) > 0:
                     return {
                         'object_type': 'person',
-                        'confidence': 85 + random.uniform(0, 10),
-                        'details': f'Detected {len(faces)} face(s)'
+                        'confidence': 92 + random.uniform(0, 3),
+                        'details': f'Human face detected: {len(faces)} face(s)'
                     }
             
-            # Check for skin tone detection (backup person detection)
-            person_confidence = self._detect_skin_tone(img_cv)
-            if person_confidence > 0.3:
+            # 2. Enhanced plant detection (higher priority)
+            plant_confidence = self._analyze_plant_features_enhanced(img_cv)
+            if plant_confidence > 0.2:  # Slightly lower threshold
+                detection_results.append(('plant', plant_confidence * 100, 'Plant features detected'))
+            
+            # 3. Enhanced skin tone detection for humans (more restrictive)
+            person_confidence = self._detect_skin_tone_enhanced(img_cv)
+            if person_confidence > 0.35:  # Higher threshold to reduce false positives
+                detection_results.append(('person', person_confidence * 100, 'Human skin tone detected'))
+            
+            # 4. Animal detection using fur/texture patterns
+            animal_confidence = self._detect_animal_features(img_cv)
+            if animal_confidence > 0.35:  # Slightly higher threshold
+                detection_results.append(('animal', animal_confidence * 100, 'Animal features detected'))
+            
+            # 5. Check for artificial objects (buildings, vehicles, etc.)
+            artificial_confidence = self._detect_artificial_objects(img_cv)
+            if artificial_confidence > 0.4:
+                detection_results.append(('artificial', artificial_confidence * 100, 'Artificial object detected'))
+            
+            # Select the detection with highest confidence, but prioritize plants if close
+            if detection_results:
+                # Sort by confidence
+                detection_results.sort(key=lambda x: x[1], reverse=True)
+                best_detection = detection_results[0]
+                
+                # If the best detection is plant, or if plant is close second, choose plant
+                plant_detections = [d for d in detection_results if d[0] == 'plant']
+                if plant_detections:
+                    plant_conf = plant_detections[0][1]
+                    best_conf = best_detection[1]
+                    
+                    # Choose plant if it's within 20 points of the best detection
+                    if best_detection[0] == 'plant' or (plant_conf >= best_conf - 20):
+                        best_detection = plant_detections[0]
+                
                 return {
-                    'object_type': 'person',
-                    'confidence': min(person_confidence * 100, 90),
-                    'details': 'Skin tone detected'
+                    'object_type': best_detection[0],
+                    'confidence': min(best_detection[1], 95),
+                    'details': best_detection[2]
                 }
             
-            # Check for plant content
-            plant_confidence = self._analyze_plant_features(img_cv)
-            if plant_confidence > 0.2:
-                return {
-                    'object_type': 'plant',
-                    'confidence': min(plant_confidence * 100, 95),
-                    'details': 'Plant features detected'
-                }
-            
-            # Default to unknown
+            # Default to unknown with low confidence
             return {
                 'object_type': 'unknown',
-                'confidence': 50,
-                'details': 'Could not determine object type clearly'
+                'confidence': 25,
+                'details': 'Could not clearly identify object type'
             }
             
         except Exception as e:
@@ -81,75 +122,399 @@ class VisionService:
                 'details': f'Detection failed: {str(e)}'
             }
     
-    def _detect_skin_tone(self, img_cv):
-        """Detect skin tone in the image to identify people"""
+    def _detect_skin_tone_enhanced(self, img_cv):
+        """Enhanced skin tone detection with better accuracy and reduced false positives"""
         try:
-            # Convert to HSV for better skin detection
+            # Convert to multiple color spaces for better skin detection
             hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
+            ycrcb = cv2.cvtColor(img_cv, cv2.COLOR_BGR2YCrCb)
             
-            # Define multiple skin tone ranges in HSV
-            skin_ranges = [
-                # Light skin tones
-                ((0, 20, 70), (20, 255, 255)),
-                # Medium skin tones
-                ((0, 48, 80), (20, 255, 255)),
-                # Darker skin tones
-                ((0, 80, 60), (25, 255, 255))
+            # Check if image has too much green (likely a plant)
+            green_mask = cv2.inRange(hsv, np.array([25, 40, 40]), np.array([85, 255, 255]))
+            green_ratio = np.sum(green_mask > 0) / (img_cv.shape[0] * img_cv.shape[1])
+            
+            # If more than 30% green, heavily penalize skin detection
+            if green_ratio > 0.3:
+                return 0.0
+            elif green_ratio > 0.15:
+                skin_penalty = 0.3  # Reduce skin confidence by 70%
+            else:
+                skin_penalty = 1.0  # No penalty
+            
+            # More restrictive skin tone ranges to reduce false positives
+            hsv_skin_ranges = [
+                # Light skin tones (more restrictive)
+                ((0, 58, 90), (18, 200, 245)),
+                # Medium skin tones (more restrictive)
+                ((0, 35, 80), (20, 180, 220)),
             ]
             
-            total_skin_pixels = 0
+            # More restrictive YCrCb ranges
+            ycrcb_skin_ranges = [
+                ((90, 140, 90), (240, 175, 130))
+            ]
+            
             total_pixels = img_cv.shape[0] * img_cv.shape[1]
+            skin_pixels_hsv = 0
+            skin_pixels_ycrcb = 0
             
-            for lower, upper in skin_ranges:
+            # HSV-based skin detection
+            for lower, upper in hsv_skin_ranges:
                 mask = cv2.inRange(hsv, np.array(lower), np.array(upper))
-                total_skin_pixels += np.sum(mask > 0)
+                skin_pixels_hsv += np.sum(mask > 0)
             
-            skin_ratio = total_skin_pixels / total_pixels
-            return skin_ratio
+            # YCrCb-based skin detection
+            for lower, upper in ycrcb_skin_ranges:
+                mask = cv2.inRange(ycrcb, np.array(lower), np.array(upper))
+                skin_pixels_ycrcb += np.sum(mask > 0)
+            
+            # Calculate ratios
+            hsv_skin_ratio = skin_pixels_hsv / total_pixels
+            ycrcb_skin_ratio = skin_pixels_ycrcb / total_pixels
+            
+            # Both methods must agree for higher confidence
+            if hsv_skin_ratio < 0.1 or ycrcb_skin_ratio < 0.05:
+                return 0.0
+            
+            # Combine both methods (require both to detect skin)
+            combined_skin_ratio = min(hsv_skin_ratio, ycrcb_skin_ratio) * 0.8 + max(hsv_skin_ratio, ycrcb_skin_ratio) * 0.2
+            
+            # Additional validation: check for human-like features
+            if combined_skin_ratio > 0.1:
+                gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+                
+                # Check for face-like features using edge patterns
+                edges = cv2.Canny(gray, 50, 150)
+                
+                # Look for circular patterns (eyes, face outline)
+                circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 50,
+                                         param1=50, param2=30, minRadius=10, maxRadius=100)
+                
+                human_features = 0
+                if circles is not None and len(circles[0]) >= 2:
+                    human_features += 1
+                
+                # Check for elongated shapes that could be limbs
+                contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                elongated_shapes = 0
+                for contour in contours:
+                    area = cv2.contourArea(contour)
+                    if area > 1000:  # Increased threshold
+                        rect = cv2.minAreaRect(contour)
+                        width, height = rect[1]
+                        if width > 0 and height > 0:
+                            aspect_ratio = max(width, height) / min(width, height)
+                            if 3.0 < aspect_ratio < 6.0:  # More restrictive human proportions
+                                elongated_shapes += 1
+                
+                if elongated_shapes >= 2:
+                    human_features += 1
+                
+                # Require multiple human-like features
+                if human_features < 1:
+                    combined_skin_ratio *= 0.3
+            
+            # Apply green penalty
+            combined_skin_ratio *= skin_penalty
+            
+            return min(combined_skin_ratio, 1.0)
             
         except Exception as e:
-            print(f"Skin tone detection error: {str(e)}")
+            print(f"Enhanced skin tone detection error: {str(e)}")
             return 0
     
-    def _analyze_plant_features(self, img_cv):
-        """Analyze plant-specific features in the image"""
+    
+    def _detect_animal_features(self, img_cv):
+        """Detect animal features like fur patterns, eyes, and body shapes"""
+        try:
+            gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+            hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
+            
+            animal_score = 0
+            total_pixels = img_cv.shape[0] * img_cv.shape[1]
+            
+            # First, check if this is likely a plant (exclude plants)
+            green_mask = cv2.inRange(hsv, np.array([25, 40, 40]), np.array([85, 255, 255]))
+            green_ratio = np.sum(green_mask > 0) / total_pixels
+            
+            # If too much green, it's likely a plant, not an animal
+            if green_ratio > 0.4:
+                return 0.0
+            elif green_ratio > 0.2:
+                plant_penalty = 0.4  # Reduce animal confidence by 60%
+            else:
+                plant_penalty = 1.0  # No penalty
+            
+            # 1. Fur texture detection using texture analysis
+            sobel_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
+            sobel_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
+            texture_magnitude = np.sqrt(sobel_x**2 + sobel_y**2)
+            texture_variance = np.var(texture_magnitude)
+            
+            if texture_variance > 400:  # Higher threshold
+                animal_score += 0.25
+            elif texture_variance > 200:
+                animal_score += 0.15
+            
+            # 2. Color pattern analysis for common animal colors (more restrictive)
+            animal_color_ranges = [
+                # Brown ranges (dogs, cats, etc.) - more restrictive
+                ((8, 60, 30), (18, 255, 180)),
+                # Black/dark gray - more restrictive
+                ((0, 0, 0), (180, 255, 40)),
+                # Light gray/white - more restrictive
+                ((0, 0, 200), (180, 25, 255)),
+                # Golden/tan colors - more restrictive
+                ((12, 120, 120), (22, 255, 240))
+            ]
+            
+            animal_color_pixels = 0
+            for lower, upper in animal_color_ranges:
+                mask = cv2.inRange(hsv, np.array(lower), np.array(upper))
+                animal_color_pixels += np.sum(mask > 0)
+            
+            animal_color_ratio = animal_color_pixels / total_pixels
+            if animal_color_ratio > 0.5:  # Higher threshold
+                animal_score += 0.3
+            elif animal_color_ratio > 0.3:
+                animal_score += 0.2
+            
+            # 3. Eye detection using circular patterns (more restrictive)
+            circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 40,
+                                     param1=60, param2=35, minRadius=8, maxRadius=40)
+            
+            if circles is not None and len(circles[0]) >= 1:
+                potential_eyes = len(circles[0])
+                if 1 <= potential_eyes <= 3:  # Reasonable number for animal eyes
+                    animal_score += 0.2
+                    # Bonus for pairs of circles (eyes)
+                    if potential_eyes == 2:
+                        animal_score += 0.1
+            
+            # 4. Body shape analysis - more restrictive
+            edges = cv2.Canny(gray, 60, 160)
+            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            organic_shapes = 0
+            total_contour_area = 0
+            
+            for contour in contours:
+                area = cv2.contourArea(contour)
+                if area > 800:  # Higher threshold
+                    total_contour_area += area
+                    
+                    # Check if shape is organic (non-geometric)
+                    hull = cv2.convexHull(contour)
+                    hull_area = cv2.contourArea(hull)
+                    
+                    if hull_area > 0:
+                        solidity = area / hull_area
+                        # Animals tend to have complex, non-convex shapes
+                        if 0.4 < solidity < 0.75:  # More restrictive range
+                            organic_shapes += 1
+            
+            if organic_shapes > 0 and total_contour_area > (total_pixels * 0.15):  # Higher threshold
+                animal_score += 0.15
+            
+            # Apply plant penalty
+            animal_score *= plant_penalty
+            
+            return min(animal_score, 1.0)
+            
+        except Exception as e:
+            print(f"Animal detection error: {str(e)}")
+            return 0
+    
+    def _detect_artificial_objects(self, img_cv):
+        """Detect artificial objects like buildings, vehicles, electronics"""
+        try:
+            gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+            hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
+            
+            artificial_score = 0
+            total_pixels = img_cv.shape[0] * img_cv.shape[1]
+            
+            # 1. Detect straight lines and geometric patterns (typical of artificial objects)
+            edges = cv2.Canny(gray, 50, 150)
+            lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=50, minLineLength=30, maxLineGap=10)
+            
+            if lines is not None and len(lines) > 5:
+                artificial_score += 0.3  # Many straight lines suggest artificial objects
+            
+            # 2. Check for artificial color patterns
+            artificial_color_ranges = [
+                # Bright blues (electronics, vehicles)
+                ((100, 100, 100), (130, 255, 255)),
+                # Bright reds (warning signs, vehicles)
+                ((0, 150, 150), (10, 255, 255)),
+                # Pure whites/grays (buildings, electronics)
+                ((0, 0, 200), (180, 50, 255)),
+                # Metallic colors
+                ((0, 0, 100), (180, 30, 200))
+            ]
+            
+            artificial_color_pixels = 0
+            for lower, upper in artificial_color_ranges:
+                mask = cv2.inRange(hsv, np.array(lower), np.array(upper))
+                artificial_color_pixels += np.sum(mask > 0)
+            
+            artificial_color_ratio = artificial_color_pixels / total_pixels
+            if artificial_color_ratio > 0.3:
+                artificial_score += 0.25
+            
+            # 3. Geometric shape detection
+            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            geometric_shapes = 0
+            
+            for contour in contours:
+                area = cv2.contourArea(contour)
+                if area > 500:
+                    perimeter = cv2.arcLength(contour, True)
+                    if perimeter > 0:
+                        circularity = 4 * np.pi * area / (perimeter ** 2)
+                        
+                        # Very circular or very square shapes suggest artificial objects
+                        if circularity > 0.85 or circularity < 0.1:
+                            geometric_shapes += 1
+                        
+                        # Check for rectangular shapes
+                        approx = cv2.approxPolyDP(contour, 0.02 * perimeter, True)
+                        if len(approx) == 4:  # Rectangle
+                            geometric_shapes += 1
+            
+            if geometric_shapes > 2:
+                artificial_score += 0.2
+            
+            # 4. Text detection (signs, displays)
+            # Simple text detection using connected components
+            _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary, connectivity=8)
+            
+            text_like_components = 0
+            for i in range(1, num_labels):
+                width = stats[i, cv2.CC_STAT_WIDTH]
+                height = stats[i, cv2.CC_STAT_HEIGHT]
+                area = stats[i, cv2.CC_STAT_AREA]
+                
+                if area > 50 and width > height and 2 < width/height < 10:
+                    text_like_components += 1
+            
+            if text_like_components > 3:
+                artificial_score += 0.15
+            
+            return min(artificial_score, 1.0)
+            
+        except Exception as e:
+            print(f"Artificial object detection error: {str(e)}")
+            return 0
+    
+    def _analyze_plant_features_enhanced(self, img_cv):
+        """Enhanced plant feature analysis with better accuracy"""
         try:
             # Convert to HSV color space
             hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
-            
-            # Green vegetation detection
-            lower_green = np.array([25, 40, 40])
-            upper_green = np.array([85, 255, 255])
-            green_mask = cv2.inRange(hsv, lower_green, upper_green)
-            green_ratio = np.sum(green_mask > 0) / (img_cv.shape[0] * img_cv.shape[1])
-            
-            # Texture analysis for leaf patterns
             gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
-            laplacian = cv2.Laplacian(gray, cv2.CV_64F)
-            texture_score = np.var(laplacian) / 10000  # Normalize
+            total_pixels = img_cv.shape[0] * img_cv.shape[1]
             
-            # Check for organic shapes (not geometric)
-            edges = cv2.Canny(gray, 50, 150)
+            plant_score = 0
+            
+            # 1. Enhanced green vegetation detection with multiple ranges
+            green_ranges = [
+                # Bright green (healthy plants)
+                ((35, 40, 40), (85, 255, 255)),
+                # Dark green (mature plants)
+                ((25, 30, 20), (85, 255, 200)),
+                # Yellow-green (new growth)
+                ((20, 40, 40), (35, 255, 255)),
+                # Blue-green (some plant varieties)
+                ((85, 40, 40), (95, 255, 255))
+            ]
+            
+            total_green_pixels = 0
+            for lower, upper in green_ranges:
+                mask = cv2.inRange(hsv, np.array(lower), np.array(upper))
+                total_green_pixels += np.sum(mask > 0)
+            
+            green_ratio = total_green_pixels / total_pixels
+            
+            # Score based on green content
+            if green_ratio > 0.6:
+                plant_score += 0.4  # High confidence for lots of green
+            elif green_ratio > 0.3:
+                plant_score += 0.3
+            elif green_ratio > 0.15:
+                plant_score += 0.2
+            elif green_ratio > 0.05:
+                plant_score += 0.1
+            
+            # 2. Leaf-like texture patterns
+            sobel_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
+            sobel_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
+            texture_gradient = np.mean(np.sqrt(sobel_x**2 + sobel_y**2))
+            
+            if 15 < texture_gradient < 40:
+                plant_score += 0.2
+            elif 10 < texture_gradient < 50:
+                plant_score += 0.1
+            
+            # 3. Organic edge patterns (leaf shapes, branches)
+            edges = cv2.Canny(gray, 30, 100)
             contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             
-            organic_score = 0
-            if len(contours) > 0:
-                for contour in contours:
-                    if cv2.contourArea(contour) > 100:
-                        # Calculate how "organic" the shape is
-                        perimeter = cv2.arcLength(contour, True)
-                        if perimeter > 0:
-                            circularity = 4 * np.pi * cv2.contourArea(contour) / (perimeter ** 2)
-                            # Organic shapes have irregular circularity
-                            if 0.1 < circularity < 0.7:
-                                organic_score += 0.1
+            organic_plant_shapes = 0
+            for contour in contours:
+                area = cv2.contourArea(contour)
+                if area > 200:
+                    perimeter = cv2.arcLength(contour, True)
+                    if perimeter > 0:
+                        circularity = 4 * np.pi * area / (perimeter * perimeter)
+                        if 0.1 < circularity < 0.8:
+                            organic_plant_shapes += 1
+                            
+                        rect = cv2.minAreaRect(contour)
+                        width, height = rect[1]
+                        if width > 0 and height > 0:
+                            aspect_ratio = max(width, height) / min(width, height)
+                            if 2.0 < aspect_ratio < 10.0:
+                                organic_plant_shapes += 0.5
             
-            # Combine scores for plant confidence
-            plant_confidence = (green_ratio * 0.6 + min(texture_score, 1.0) * 0.3 + min(organic_score, 1.0) * 0.1)
-            return plant_confidence
+            if organic_plant_shapes > 2:
+                plant_score += 0.15
+            elif organic_plant_shapes > 0:
+                plant_score += 0.1
+            
+            # 4. Color distribution analysis
+            h_channel = hsv[:,:,0]
+            s_channel = hsv[:,:,1]
+            v_channel = hsv[:,:,2]
+            
+            h_std = np.std(h_channel)
+            s_std = np.std(s_channel)
+            v_std = np.std(v_channel)
+            
+            if 10 < h_std < 40 and s_std > 20 and v_std > 30:
+                plant_score += 0.1
+            
+            # 5. Exclude artificial characteristics
+            artificial_colors = [
+                ((100, 100, 100), (130, 255, 255)),
+                ((0, 200, 200), (10, 255, 255)),
+                ((0, 0, 220), (180, 30, 255))
+            ]
+            
+            artificial_pixels = 0
+            for lower, upper in artificial_colors:
+                mask = cv2.inRange(hsv, np.array(lower), np.array(upper))
+                artificial_pixels += np.sum(mask > 0)
+            
+            artificial_ratio = artificial_pixels / total_pixels
+            if artificial_ratio > 0.3:
+                plant_score *= 0.5
+            
+            return min(plant_score, 1.0)
             
         except Exception as e:
-            print(f"Plant feature analysis error: {str(e)}")
+            print(f"Enhanced plant feature analysis error: {str(e)}")
             return 0
         
     def _detect_plant_content(self, img_cv):
@@ -324,7 +689,7 @@ class VisionService:
         }
     
     def analyze_crop_image(self, image_file):
-        """Analyze image using real computer vision to detect objects and diseases"""
+        """Enhanced image analysis with improved object detection and user feedback"""
         try:
             # Validate image
             validation_result = self._validate_image(image_file)
@@ -338,40 +703,77 @@ class VisionService:
             # Convert to OpenCV format
             img_cv = cv2.cvtColor((img_array * 255).astype(np.uint8), cv2.COLOR_RGB2BGR)
             
-            # First, detect what type of object this is
+            # Detect what type of object this is using enhanced detection
             object_detection = self._detect_object_type(img_cv)
+            object_type = object_detection['object_type']
+            confidence = object_detection['confidence']
+            details = object_detection['details']
             
-            if object_detection['object_type'] == 'person':
+            if object_type == 'person':
                 return {
                     'success': True,
                     'object_type': 'person',
-                    'message': 'Human detected in image',
-                    'confidence': object_detection['confidence'],
-                    'details': object_detection['details'],
-                    'recommendation': 'Please upload an image of a plant for disease analysis',
+                    'message': 'Human detected in the image',
+                    'confidence': confidence,
+                    'details': details,
+                    'recommendation': 'This appears to be a photo of a person. Please upload an image of a plant or crop for disease analysis.',
+                    'action_required': 'Please try again with a plant image',
                     'timestamp': datetime.now().isoformat()
                 }
             
-            elif object_detection['object_type'] == 'plant':
-                # Perform detailed plant analysis
+            elif object_type == 'animal':
+                return {
+                    'success': True,
+                    'object_type': 'animal',
+                    'message': 'Animal detected in the image',
+                    'confidence': confidence,
+                    'details': details,
+                    'recommendation': 'This appears to be an animal (dog, cat, etc.). Please upload an image of a plant or crop for disease analysis.',
+                    'action_required': 'Please try again with a plant image',
+                    'timestamp': datetime.now().isoformat()
+                }
+            
+            elif object_type == 'artificial':
+                return {
+                    'success': True,
+                    'object_type': 'artificial',
+                    'message': 'Artificial object detected in the image',
+                    'confidence': confidence,
+                    'details': details,
+                    'recommendation': 'This appears to be an artificial object (building, vehicle, electronics, etc.). Please upload an image of a plant or crop for disease analysis.',
+                    'action_required': 'Please try again with a plant image',
+                    'timestamp': datetime.now().isoformat()
+                }
+            
+            elif object_type == 'plant':
+                # Perform detailed plant disease analysis
                 analysis_result = self._analyze_plant_disease(img_cv, img_array)
                 return {
                     'success': True,
                     'object_type': 'plant',
+                    'message': 'Plant detected - performing disease analysis',
                     'analysis': analysis_result,
                     'confidence': analysis_result['confidence'],
-                    'model_used': 'Real_CV_Analysis_v2.0',
+                    'detection_details': details,
+                    'model_used': 'Enhanced_CV_Analysis_v3.0',
                     'timestamp': datetime.now().isoformat()
                 }
             
-            else:
+            else:  # unknown object type
                 return {
                     'success': False,
                     'object_type': 'unknown',
-                    'message': 'Could not identify object in image',
-                    'confidence': object_detection['confidence'],
-                    'details': object_detection['details'],
-                    'recommendation': 'Please upload a clear image of a plant or ensure good lighting',
+                    'message': 'Unable to clearly identify the object in the image',
+                    'confidence': confidence,
+                    'details': details,
+                    'recommendation': 'The image content could not be clearly identified. Please upload a clear, well-lit image of a plant or crop for disease analysis. Ensure the plant takes up most of the frame.',
+                    'action_required': 'Please try again with a clearer plant image',
+                    'troubleshooting_tips': [
+                        'Ensure good lighting when taking the photo',
+                        'Focus on the plant leaves or affected areas',
+                        'Make sure the plant fills most of the frame',
+                        'Avoid blurry or heavily shadowed images'
+                    ],
                     'timestamp': datetime.now().isoformat()
                 }
             
