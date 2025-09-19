@@ -75,6 +75,14 @@ def set_language(lang):
         session['language'] = lang
     return jsonify({'status': 'success', 'language': lang})
 
+@app.route('/api/translations/<lang>')
+def get_translations(lang):
+    """API endpoint to serve translation files"""
+    if lang in LANGUAGES:
+        return jsonify(translations.get(lang, {}))
+    else:
+        return jsonify({}), 404
+
 @app.route('/recommend', methods=['POST'])
 def recommend_crops():
     """Enhanced crop recommendation with ML model"""
@@ -105,7 +113,7 @@ def recommend_crops():
             'recommendations': []
         })
 
-@app.route('/weather')
+@app.route('/api/weather')
 def get_weather():
     """Get weather data for location"""
     current_lang = session.get('language', 'en')
@@ -122,44 +130,14 @@ def get_weather():
     try:
         # Use real weather service
         weather_result = weather_service.get_current_weather(lat, lon)
-        
-        if weather_result['success']:
-            weather_data = weather_result['data']
-            return jsonify({
-                'temperature': weather_data['temperature'],
-                'humidity': weather_data['humidity'],
-                'rainfall': 0,  # OpenWeather doesn't provide current rainfall in basic plan
-                'description': weather_data['description'],
-                'location': weather_data['location'],
-                'country': weather_data['country'],
-                'wind_speed': weather_data['wind_speed'],
-                'pressure': weather_data['pressure'],
-                'sunrise': weather_data['sunrise'],
-                'sunset': weather_data['sunset'],
-                'icon': weather_data['icon']
-            })
-        else:
-            # Fallback to mock data if API fails
-            return jsonify({
-                'temperature': 28,
-                'humidity': 65,
-                'rainfall': 12,
-                'description': get_text('weather_desc', current_lang),
-                'location': 'Demo Location',
-                'country': 'IN',
-                'error': weather_result.get('error', 'Weather service unavailable')
-            })
+        return jsonify(weather_result)
             
     except Exception as e:
         print(f"Weather error: {str(e)}")
         return jsonify({
-            'temperature': 28,
-            'humidity': 65,
-            'rainfall': 12,
-            'description': get_text('weather_desc', current_lang),
-            'location': 'Demo Location',
-            'country': 'IN',
-            'error': 'Weather service error'
+            'success': False,
+            'error': 'Weather service error',
+            'data': weather_service._get_mock_weather()
         })
 
 @app.route('/upload', methods=['POST'])
