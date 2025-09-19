@@ -34,574 +34,207 @@ class VisionService:
             return None
     
     def _detect_object_type(self, img_cv):
-        """Enhanced object detection for persons, animals, plants, and other objects"""
+        """
+        Enhanced object detection using a multi-feature scoring system.
+        We analyze color, texture, and shape to make a more informed decision.
+        """
         try:
-            detection_results = []
-            
-            # First check for significant green content (strong plant indicator)
-            hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
-            green_mask = cv2.inRange(hsv, np.array([25, 40, 40]), np.array([85, 255, 255]))
-            green_ratio = np.sum(green_mask > 0) / (img_cv.shape[0] * img_cv.shape[1])
-            
-            # If there's significant green content, prioritize plant detection
-            if green_ratio > 0.2:
-                plant_confidence = self._analyze_plant_features_enhanced(img_cv)
-                if plant_confidence > 0.15:  # Lower threshold for green-heavy images
-                    return {
-                        'object_type': 'plant',
-                        'confidence': min(plant_confidence * 100 + 10, 95),  # Boost confidence
-                        'details': f'High green content detected ({green_ratio:.2%}) - Plant features confirmed'
-                    }
-            
-            # 1. Human face detection (highest priority for clear faces)
+            # 1. Human Face Detection (High Priority)
             if self.face_cascade is not None:
                 gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
                 faces = self.face_cascade.detectMultiScale(gray, 1.1, 4)
-                
                 if len(faces) > 0:
                     return {
                         'object_type': 'person',
-                        'confidence': 92 + random.uniform(0, 3),
+                        'confidence': 95.0, # High confidence for face detection
                         'details': f'Human face detected: {len(faces)} face(s)'
                     }
+
+            # 2. Score-based classification for other categories
+            scores = {
+                'plant': self._score_plant_features(img_cv),
+                'animal': self._score_animal_features(img_cv),
+                'person': self._score_person_features(img_cv),
+                'artificial': self._score_artificial_features(img_cv)
+            }
+
+            # Find the category with the highest score
+            best_category = max(scores, key=scores.get)
+            best_score = scores[best_category]
+
+            # 3. Enhanced Decision Logic
+            print(f"🔍 Object detection scores: {scores}")
             
-            # 2. Enhanced plant detection (higher priority)
-            plant_confidence = self._analyze_plant_features_enhanced(img_cv)
-            if plant_confidence > 0.2:  # Slightly lower threshold
-                detection_results.append(('plant', plant_confidence * 100, 'Plant features detected'))
-            
-            # 3. Enhanced skin tone detection for humans (more restrictive)
-            person_confidence = self._detect_skin_tone_enhanced(img_cv)
-            if person_confidence > 0.35:  # Higher threshold to reduce false positives
-                detection_results.append(('person', person_confidence * 100, 'Human skin tone detected'))
-            
-            # 4. Animal detection using fur/texture patterns
-            animal_confidence = self._detect_animal_features(img_cv)
-            if animal_confidence > 0.35:  # Slightly higher threshold
-                detection_results.append(('animal', animal_confidence * 100, 'Animal features detected'))
-            
-            # 5. Check for artificial objects (buildings, vehicles, etc.)
-            artificial_confidence = self._detect_artificial_objects(img_cv)
-            if artificial_confidence > 0.4:
-                detection_results.append(('artificial', artificial_confidence * 100, 'Artificial object detected'))
-            
-            # Select the detection with highest confidence, but prioritize plants if close
-            if detection_results:
-                # Sort by confidence
-                detection_results.sort(key=lambda x: x[1], reverse=True)
-                best_detection = detection_results[0]
-                
-                # If the best detection is plant, or if plant is close second, choose plant
-                plant_detections = [d for d in detection_results if d[0] == 'plant']
-                if plant_detections:
-                    plant_conf = plant_detections[0][1]
-                    best_conf = best_detection[1]
-                    
-                    # Choose plant if it's within 20 points of the best detection
-                    if best_detection[0] == 'plant' or (plant_conf >= best_conf - 20):
-                        best_detection = plant_detections[0]
-                
+            # If person score is significantly higher than plant score, it's likely a person
+            if scores['person'] > 0.4 and scores['person'] > scores['plant'] * 1.5:
                 return {
-                    'object_type': best_detection[0],
-                    'confidence': min(best_detection[1], 95),
-                    'details': best_detection[2]
+                    'object_type': 'person',
+                    'confidence': min(scores['person'] * 100, 95.0),
+                    'details': f'Strong person indicators detected. Person score: {scores["person"]:.2f}'
                 }
             
-            # Default to unknown with low confidence
-            return {
-                'object_type': 'unknown',
-                'confidence': 25,
-                'details': 'Could not clearly identify object type'
-            }
+            # If plant score is higher and person score is low, it's likely a plant
+            elif scores['plant'] > 0.3 and scores['person'] < 0.3:
+                return {
+                    'object_type': 'plant',
+                    'confidence': min(scores['plant'] * 100, 95.0),
+                    'details': f'Plant features detected. Plant score: {scores["plant"]:.2f}'
+                }
             
+            # General decision logic
+            elif best_score < 0.25:
+                return {
+                    'object_type': 'unknown',
+                    'confidence': 25.0,
+                    'details': 'Could not clearly identify object type based on features.'
+                }
+            else:
+                return {
+                    'object_type': best_category,
+                    'confidence': min(best_score * 100, 95.0),
+                    'details': f'Best match: {best_category} (score: {best_score:.2f}). All scores: {scores}'
+                }
+
         except Exception as e:
             print(f"Object detection error: {str(e)}")
-            return {
-                'object_type': 'unknown',
-                'confidence': 0,
-                'details': f'Detection failed: {str(e)}'
-            }
-    
-    def _detect_skin_tone_enhanced(self, img_cv):
-        """Enhanced skin tone detection with better accuracy and reduced false positives"""
-        try:
-            # Convert to multiple color spaces for better skin detection
-            hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
-            ycrcb = cv2.cvtColor(img_cv, cv2.COLOR_BGR2YCrCb)
+            return {'object_type': 'unknown', 'confidence': 0, 'details': f'Detection failed: {str(e)}'}
+
+    # --- Scoring Functions ---
+
+    def _score_plant_features(self, img_cv):
+        """Enhanced scoring for plant-like features including mature crops like wheat."""
+        score = 0
+        hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
+        gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+        total_pixels = img_cv.shape[0] * img_cv.shape[1]
+
+        # a. Vegetation colors (green AND yellow for mature crops)
+        green_mask = cv2.inRange(hsv, np.array([30, 40, 40]), np.array([90, 255, 255]))
+        yellow_mask = cv2.inRange(hsv, np.array([15, 40, 40]), np.array([35, 255, 255]))
+        vegetation_mask = cv2.bitwise_or(green_mask, yellow_mask)
+        
+        vegetation_ratio = np.sum(vegetation_mask > 0) / total_pixels
+        if vegetation_ratio > 0.15:  # Lower threshold for mature crops
+            score += 0.5 * min(1, vegetation_ratio / 0.4)
+
+        # b. Plant textures (both fine leaf textures and coarser crop textures)
+        laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+        if 30 < laplacian_var < 800:  # Broader range for different plant types
+            score += 0.3
+
+        # c. Organic/natural patterns
+        edges = cv2.Canny(gray, 50, 150)
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        # Check for plant-like structures
+        if len(contours) > 5:  # Plants have multiple organic shapes
+            score += 0.2
             
-            # Check if image has too much green (likely a plant)
-            green_mask = cv2.inRange(hsv, np.array([25, 40, 40]), np.array([85, 255, 255]))
-            green_ratio = np.sum(green_mask > 0) / (img_cv.shape[0] * img_cv.shape[1])
-            
-            # If more than 30% green, heavily penalize skin detection
-            if green_ratio > 0.3:
-                return 0.0
-            elif green_ratio > 0.15:
-                skin_penalty = 0.3  # Reduce skin confidence by 70%
-            else:
-                skin_penalty = 1.0  # No penalty
-            
-            # More restrictive skin tone ranges to reduce false positives
-            hsv_skin_ranges = [
-                # Light skin tones (more restrictive)
-                ((0, 58, 90), (18, 200, 245)),
-                # Medium skin tones (more restrictive)
-                ((0, 35, 80), (20, 180, 220)),
-            ]
-            
-            # More restrictive YCrCb ranges
-            ycrcb_skin_ranges = [
-                ((90, 140, 90), (240, 175, 130))
-            ]
-            
-            total_pixels = img_cv.shape[0] * img_cv.shape[1]
-            skin_pixels_hsv = 0
-            skin_pixels_ycrcb = 0
-            
-            # HSV-based skin detection
-            for lower, upper in hsv_skin_ranges:
-                mask = cv2.inRange(hsv, np.array(lower), np.array(upper))
-                skin_pixels_hsv += np.sum(mask > 0)
-            
-            # YCrCb-based skin detection
-            for lower, upper in ycrcb_skin_ranges:
-                mask = cv2.inRange(ycrcb, np.array(lower), np.array(upper))
-                skin_pixels_ycrcb += np.sum(mask > 0)
-            
-            # Calculate ratios
-            hsv_skin_ratio = skin_pixels_hsv / total_pixels
-            ycrcb_skin_ratio = skin_pixels_ycrcb / total_pixels
-            
-            # Both methods must agree for higher confidence
-            if hsv_skin_ratio < 0.1 or ycrcb_skin_ratio < 0.05:
-                return 0.0
-            
-            # Combine both methods (require both to detect skin)
-            combined_skin_ratio = min(hsv_skin_ratio, ycrcb_skin_ratio) * 0.8 + max(hsv_skin_ratio, ycrcb_skin_ratio) * 0.2
-            
-            # Additional validation: check for human-like features
-            if combined_skin_ratio > 0.1:
-                gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
-                
-                # Check for face-like features using edge patterns
-                edges = cv2.Canny(gray, 50, 150)
-                
-                # Look for circular patterns (eyes, face outline)
-                circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 50,
-                                         param1=50, param2=30, minRadius=10, maxRadius=100)
-                
-                human_features = 0
-                if circles is not None and len(circles[0]) >= 2:
-                    human_features += 1
-                
-                # Check for elongated shapes that could be limbs
-                contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                elongated_shapes = 0
-                for contour in contours:
-                    area = cv2.contourArea(contour)
-                    if area > 1000:  # Increased threshold
-                        rect = cv2.minAreaRect(contour)
-                        width, height = rect[1]
-                        if width > 0 and height > 0:
-                            aspect_ratio = max(width, height) / min(width, height)
-                            if 3.0 < aspect_ratio < 6.0:  # More restrictive human proportions
-                                elongated_shapes += 1
-                
-                if elongated_shapes >= 2:
-                    human_features += 1
-                
-                # Require multiple human-like features
-                if human_features < 1:
-                    combined_skin_ratio *= 0.3
-            
-            # Apply green penalty
-            combined_skin_ratio *= skin_penalty
-            
-            return min(combined_skin_ratio, 1.0)
-            
-        except Exception as e:
-            print(f"Enhanced skin tone detection error: {str(e)}")
-            return 0
-    
-    
-    def _detect_animal_features(self, img_cv):
-        """Detect animal features like fur patterns, eyes, and body shapes"""
-        try:
-            gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
-            hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
-            
-            animal_score = 0
-            total_pixels = img_cv.shape[0] * img_cv.shape[1]
-            
-            # First, check if this is likely a plant (exclude plants)
-            green_mask = cv2.inRange(hsv, np.array([25, 40, 40]), np.array([85, 255, 255]))
-            green_ratio = np.sum(green_mask > 0) / total_pixels
-            
-            # If too much green, it's likely a plant, not an animal
-            if green_ratio > 0.4:
-                return 0.0
-            elif green_ratio > 0.2:
-                plant_penalty = 0.4  # Reduce animal confidence by 60%
-            else:
-                plant_penalty = 1.0  # No penalty
-            
-            # 1. Fur texture detection using texture analysis
-            sobel_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
-            sobel_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
-            texture_magnitude = np.sqrt(sobel_x**2 + sobel_y**2)
-            texture_variance = np.var(texture_magnitude)
-            
-            if texture_variance > 400:  # Higher threshold
-                animal_score += 0.25
-            elif texture_variance > 200:
-                animal_score += 0.15
-            
-            # 2. Color pattern analysis for common animal colors (more restrictive)
-            animal_color_ranges = [
-                # Brown ranges (dogs, cats, etc.) - more restrictive
-                ((8, 60, 30), (18, 255, 180)),
-                # Black/dark gray - more restrictive
-                ((0, 0, 0), (180, 255, 40)),
-                # Light gray/white - more restrictive
-                ((0, 0, 200), (180, 25, 255)),
-                # Golden/tan colors - more restrictive
-                ((12, 120, 120), (22, 255, 240))
-            ]
-            
-            animal_color_pixels = 0
-            for lower, upper in animal_color_ranges:
-                mask = cv2.inRange(hsv, np.array(lower), np.array(upper))
-                animal_color_pixels += np.sum(mask > 0)
-            
-            animal_color_ratio = animal_color_pixels / total_pixels
-            if animal_color_ratio > 0.5:  # Higher threshold
-                animal_score += 0.3
-            elif animal_color_ratio > 0.3:
-                animal_score += 0.2
-            
-            # 3. Eye detection using circular patterns (more restrictive)
-            circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1, 40,
-                                     param1=60, param2=35, minRadius=8, maxRadius=40)
-            
-            if circles is not None and len(circles[0]) >= 1:
-                potential_eyes = len(circles[0])
-                if 1 <= potential_eyes <= 3:  # Reasonable number for animal eyes
-                    animal_score += 0.2
-                    # Bonus for pairs of circles (eyes)
-                    if potential_eyes == 2:
-                        animal_score += 0.1
-            
-            # 4. Body shape analysis - more restrictive
-            edges = cv2.Canny(gray, 60, 160)
-            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
-            organic_shapes = 0
-            total_contour_area = 0
-            
-            for contour in contours:
-                area = cv2.contourArea(contour)
-                if area > 800:  # Higher threshold
-                    total_contour_area += area
-                    
-                    # Check if shape is organic (non-geometric)
-                    hull = cv2.convexHull(contour)
-                    hull_area = cv2.contourArea(hull)
-                    
-                    if hull_area > 0:
-                        solidity = area / hull_area
-                        # Animals tend to have complex, non-convex shapes
-                        if 0.4 < solidity < 0.75:  # More restrictive range
-                            organic_shapes += 1
-            
-            if organic_shapes > 0 and total_contour_area > (total_pixels * 0.15):  # Higher threshold
-                animal_score += 0.15
-            
-            # Apply plant penalty
-            animal_score *= plant_penalty
-            
-            return min(animal_score, 1.0)
-            
-        except Exception as e:
-            print(f"Animal detection error: {str(e)}")
-            return 0
-    
-    def _detect_artificial_objects(self, img_cv):
-        """Detect artificial objects like buildings, vehicles, electronics"""
-        try:
-            gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
-            hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
-            
-            artificial_score = 0
-            total_pixels = img_cv.shape[0] * img_cv.shape[1]
-            
-            # 1. Detect straight lines and geometric patterns (typical of artificial objects)
-            edges = cv2.Canny(gray, 50, 150)
+            # Bonus for wheat-like vertical structures
             lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=50, minLineLength=30, maxLineGap=10)
-            
-            if lines is not None and len(lines) > 5:
-                artificial_score += 0.3  # Many straight lines suggest artificial objects
-            
-            # 2. Check for artificial color patterns
-            artificial_color_ranges = [
-                # Bright blues (electronics, vehicles)
-                ((100, 100, 100), (130, 255, 255)),
-                # Bright reds (warning signs, vehicles)
-                ((0, 150, 150), (10, 255, 255)),
-                # Pure whites/grays (buildings, electronics)
-                ((0, 0, 200), (180, 50, 255)),
-                # Metallic colors
-                ((0, 0, 100), (180, 30, 200))
-            ]
-            
-            artificial_color_pixels = 0
-            for lower, upper in artificial_color_ranges:
-                mask = cv2.inRange(hsv, np.array(lower), np.array(upper))
-                artificial_color_pixels += np.sum(mask > 0)
-            
-            artificial_color_ratio = artificial_color_pixels / total_pixels
-            if artificial_color_ratio > 0.3:
-                artificial_score += 0.25
-            
-            # 3. Geometric shape detection
-            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            geometric_shapes = 0
-            
-            for contour in contours:
-                area = cv2.contourArea(contour)
-                if area > 500:
-                    perimeter = cv2.arcLength(contour, True)
-                    if perimeter > 0:
-                        circularity = 4 * np.pi * area / (perimeter ** 2)
-                        
-                        # Very circular or very square shapes suggest artificial objects
-                        if circularity > 0.85 or circularity < 0.1:
-                            geometric_shapes += 1
-                        
-                        # Check for rectangular shapes
-                        approx = cv2.approxPolyDP(contour, 0.02 * perimeter, True)
-                        if len(approx) == 4:  # Rectangle
-                            geometric_shapes += 1
-            
-            if geometric_shapes > 2:
-                artificial_score += 0.2
-            
-            # 4. Text detection (signs, displays)
-            # Simple text detection using connected components
-            _, binary = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary, connectivity=8)
-            
-            text_like_components = 0
-            for i in range(1, num_labels):
-                width = stats[i, cv2.CC_STAT_WIDTH]
-                height = stats[i, cv2.CC_STAT_HEIGHT]
-                area = stats[i, cv2.CC_STAT_AREA]
+            if lines is not None:
+                vertical_lines = 0
+                for line in lines:
+                    x1, y1, x2, y2 = line[0]
+                    angle = np.abs(np.arctan2(y2 - y1, x2 - x1) * 180 / np.pi)
+                    if 70 <= angle <= 110:  # Near vertical lines (wheat spikes)
+                        vertical_lines += 1
                 
-                if area > 50 and width > height and 2 < width/height < 10:
-                    text_like_components += 1
-            
-            if text_like_components > 3:
-                artificial_score += 0.15
-            
-            return min(artificial_score, 1.0)
-            
-        except Exception as e:
-            print(f"Artificial object detection error: {str(e)}")
-            return 0
+                if vertical_lines > 3:  # Multiple vertical structures suggest crops like wheat
+                    score += 0.3
+
+        return min(score, 1.0)
+
+    def _score_animal_features(self, img_cv):
+        """Scores the image based on animal-like features like fur and non-green colors."""
+        score = 0
+        hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
+        gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+
+        # a. Fur-like textures (high frequency details)
+        laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+        if laplacian_var > 600: # Fur is often highly textured
+            score += 0.4
+
+        # b. Animal-like colors (browns, tans, blacks)
+        # Brown color range in HSV
+        brown_mask = cv2.inRange(hsv, np.array([10, 100, 20]), np.array([20, 255, 200]))
+        color_ratio = np.sum(brown_mask > 0) / (img_cv.shape[0] * img_cv.shape[1])
+        if color_ratio > 0.15:
+            score += 0.4
+
+        # c. Eye detection (bonus) - Simple blob detection for eye-like shapes
+        _, thresh = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY_INV)
+        contours, _ = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        for c in contours:
+            if 20 < cv2.contourArea(c) < 500: # eye-sized blobs
+                score += 0.2
+                break # only need one
+
+        return min(score, 1.0)
+
+    def _score_person_features(self, img_cv):
+        """Enhanced person detection with multiple methods."""
+        score = 0
+        
+        # 1. Skin tone detection (YCrCb color space)
+        ycrcb = cv2.cvtColor(img_cv, cv2.COLOR_BGR2YCrCb)
+        skin_mask = cv2.inRange(ycrcb, np.array([0, 135, 85]), np.array([255, 180, 135]))
+        skin_ratio = np.sum(skin_mask > 0) / (img_cv.shape[0] * img_cv.shape[1])
+
+        if 0.1 < skin_ratio < 0.7:  # Skin shouldn't be the whole image, or too little
+            score += 0.6  # High weight for skin tone
+        
+        # 2. Clothing color detection
+        hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
+        
+        # Common clothing colors (blues, reds, browns, blacks, whites)
+        clothing_masks = [
+            cv2.inRange(hsv, (100, 50, 50), (130, 255, 255)),  # Blue
+            cv2.inRange(hsv, (0, 50, 50), (10, 255, 255)),     # Red
+            cv2.inRange(hsv, (10, 50, 20), (25, 255, 200)),    # Brown/Orange
+            cv2.inRange(hsv, (0, 0, 0), (180, 255, 50)),       # Dark colors (black/gray)
+        ]
+        
+        clothing_ratio = 0
+        for mask in clothing_masks:
+            clothing_ratio += np.sum(mask > 0) / (img_cv.shape[0] * img_cv.shape[1])
+        
+        if clothing_ratio > 0.15:
+            score += 0.3
+        
+        # 3. Human-like proportions and non-vegetation colors
+        # Check for non-green dominant colors (typical of people/clothing)
+        green_mask = cv2.inRange(hsv, (30, 40, 40), (90, 255, 255))
+        green_ratio = np.sum(green_mask > 0) / (img_cv.shape[0] * img_cv.shape[1])
+        
+        if green_ratio < 0.3:  # Low vegetation suggests non-plant subject
+            score += 0.2
+
+        return min(score, 1.0)
+
+    def _score_artificial_features(self, img_cv):
+        """Scores based on features of man-made objects like straight lines and simple shapes."""
+        score = 0
+        gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+
+        # a. Straight lines (a strong indicator of artificial objects)
+        edges = cv2.Canny(gray, 50, 150)
+        lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=100, minLineLength=50, maxLineGap=10)
+        if lines is not None and len(lines) > 5:
+            score += 0.6 # High weight for straight lines
+
+        # b. Geometric shapes (rectangles, circles)
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for c in contours:
+            peri = cv2.arcLength(c, True)
+            approx = cv2.approxPolyDP(c, 0.04 * peri, True)
+            if len(approx) == 4: # Is it a rectangle?
+                score += 0.4
+                break
+
+        return min(score, 1.0)
     
-    def _analyze_plant_features_enhanced(self, img_cv):
-        """Enhanced plant feature analysis with better accuracy"""
-        try:
-            # Convert to HSV color space
-            hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
-            gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
-            total_pixels = img_cv.shape[0] * img_cv.shape[1]
-            
-            plant_score = 0
-            
-            # 1. Enhanced green vegetation detection with multiple ranges
-            green_ranges = [
-                # Bright green (healthy plants)
-                ((35, 40, 40), (85, 255, 255)),
-                # Dark green (mature plants)
-                ((25, 30, 20), (85, 255, 200)),
-                # Yellow-green (new growth)
-                ((20, 40, 40), (35, 255, 255)),
-                # Blue-green (some plant varieties)
-                ((85, 40, 40), (95, 255, 255))
-            ]
-            
-            total_green_pixels = 0
-            for lower, upper in green_ranges:
-                mask = cv2.inRange(hsv, np.array(lower), np.array(upper))
-                total_green_pixels += np.sum(mask > 0)
-            
-            green_ratio = total_green_pixels / total_pixels
-            
-            # Score based on green content
-            if green_ratio > 0.6:
-                plant_score += 0.4  # High confidence for lots of green
-            elif green_ratio > 0.3:
-                plant_score += 0.3
-            elif green_ratio > 0.15:
-                plant_score += 0.2
-            elif green_ratio > 0.05:
-                plant_score += 0.1
-            
-            # 2. Leaf-like texture patterns
-            sobel_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
-            sobel_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
-            texture_gradient = np.mean(np.sqrt(sobel_x**2 + sobel_y**2))
-            
-            if 15 < texture_gradient < 40:
-                plant_score += 0.2
-            elif 10 < texture_gradient < 50:
-                plant_score += 0.1
-            
-            # 3. Organic edge patterns (leaf shapes, branches)
-            edges = cv2.Canny(gray, 30, 100)
-            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
-            organic_plant_shapes = 0
-            for contour in contours:
-                area = cv2.contourArea(contour)
-                if area > 200:
-                    perimeter = cv2.arcLength(contour, True)
-                    if perimeter > 0:
-                        circularity = 4 * np.pi * area / (perimeter * perimeter)
-                        if 0.1 < circularity < 0.8:
-                            organic_plant_shapes += 1
-                            
-                        rect = cv2.minAreaRect(contour)
-                        width, height = rect[1]
-                        if width > 0 and height > 0:
-                            aspect_ratio = max(width, height) / min(width, height)
-                            if 2.0 < aspect_ratio < 10.0:
-                                organic_plant_shapes += 0.5
-            
-            if organic_plant_shapes > 2:
-                plant_score += 0.15
-            elif organic_plant_shapes > 0:
-                plant_score += 0.1
-            
-            # 4. Color distribution analysis
-            h_channel = hsv[:,:,0]
-            s_channel = hsv[:,:,1]
-            v_channel = hsv[:,:,2]
-            
-            h_std = np.std(h_channel)
-            s_std = np.std(s_channel)
-            v_std = np.std(v_channel)
-            
-            if 10 < h_std < 40 and s_std > 20 and v_std > 30:
-                plant_score += 0.1
-            
-            # 5. Exclude artificial characteristics
-            artificial_colors = [
-                ((100, 100, 100), (130, 255, 255)),
-                ((0, 200, 200), (10, 255, 255)),
-                ((0, 0, 220), (180, 30, 255))
-            ]
-            
-            artificial_pixels = 0
-            for lower, upper in artificial_colors:
-                mask = cv2.inRange(hsv, np.array(lower), np.array(upper))
-                artificial_pixels += np.sum(mask > 0)
-            
-            artificial_ratio = artificial_pixels / total_pixels
-            if artificial_ratio > 0.3:
-                plant_score *= 0.5
-            
-            return min(plant_score, 1.0)
-            
-        except Exception as e:
-            print(f"Enhanced plant feature analysis error: {str(e)}")
-            return 0
-        
-    def _detect_plant_content(self, img_cv):
-        """Enhanced plant content detection using multiple computer vision techniques"""
-        try:
-            # Convert to HSV color space for better color detection
-            hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
-            
-            # Multiple green ranges to capture different plant types
-            green_ranges = [
-                # Bright green (healthy plants)
-                ((35, 40, 40), (85, 255, 255)),
-                # Dark green (older leaves)
-                ((25, 30, 20), (85, 255, 200)),
-                # Yellow-green (some plant varieties)
-                ((20, 40, 40), (35, 255, 255))
-            ]
-            
-            total_green_pixels = 0
-            total_pixels = img_cv.shape[0] * img_cv.shape[1]
-            
-            for lower, upper in green_ranges:
-                mask = cv2.inRange(hsv, np.array(lower), np.array(upper))
-                total_green_pixels += np.sum(mask > 0)
-            
-            green_ratio = total_green_pixels / total_pixels
-            
-            # Enhanced texture analysis for organic patterns
-            gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
-            
-            # Multiple texture measures
-            # 1. Laplacian variance (edge sharpness)
-            laplacian = cv2.Laplacian(gray, cv2.CV_64F)
-            texture_variance = np.var(laplacian)
-            
-            # 2. Local Binary Pattern approximation
-            sobel_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
-            sobel_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
-            texture_gradient = np.mean(np.sqrt(sobel_x**2 + sobel_y**2))
-            
-            # 3. Edge density for organic shapes
-            edges = cv2.Canny(gray, 30, 100)
-            edge_density = np.sum(edges > 0) / total_pixels
-            
-            # Combine criteria for plant detection
-            plant_score = 0
-            
-            # Green content score (0-40 points)
-            if green_ratio > 0.3:
-                plant_score += 40
-            elif green_ratio > 0.15:
-                plant_score += 25
-            elif green_ratio > 0.05:
-                plant_score += 10
-            
-            # Texture complexity score (0-30 points)
-            if texture_variance > 200:
-                plant_score += 30
-            elif texture_variance > 100:
-                plant_score += 20
-            elif texture_variance > 50:
-                plant_score += 10
-            
-            # Organic edge patterns (0-30 points)
-            if edge_density > 0.1 and texture_gradient > 20:
-                plant_score += 30
-            elif edge_density > 0.05:
-                plant_score += 15
-            
-            # Plant detected if score > 50 out of 100
-            is_plant = plant_score > 50
-            
-            return is_plant
-            
-        except Exception as e:
-            print(f"Enhanced plant detection error: {str(e)}")
-            # Fallback to basic green detection
-            try:
-                hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
-                lower_green = np.array([25, 40, 40])
-                upper_green = np.array([85, 255, 255])
-                mask = cv2.inRange(hsv, lower_green, upper_green)
-                green_ratio = np.sum(mask > 0) / (mask.shape[0] * mask.shape[1])
-                return green_ratio > 0.1
-            except:
-                return False
-        
     def _load_disease_rules(self):
         """Load disease classification rules"""
         try:
@@ -618,7 +251,7 @@ class VisionService:
             return self._get_default_rules()
     
     def _get_default_rules(self):
-        """Enhanced disease classification rules with more detailed analysis"""
+        """Enhanced disease classification rules with comprehensive crop coverage"""
         return {
             'tomato': {
                 'healthy': {
@@ -670,6 +303,12 @@ class VisionService:
                     'brightness': (0.1, 0.3),
                     'brown_spots': (0.4, 0.7),
                     'yellow_ratio': (0.3, 0.5)
+                },
+                'black_scurf': {
+                    'green_ratio': (0.4, 0.7), 
+                    'brightness': (0.2, 0.5),
+                    'brown_spots': (0.2, 0.5),
+                    'yellow_ratio': (0.1, 0.3)
                 }
             },
             'corn': {
@@ -677,13 +316,177 @@ class VisionService:
                     'green_ratio': (0.6, 0.9), 
                     'brightness': (0.5, 0.8),
                     'brown_spots': (0, 0.1),
-                    'yellow_ratio': (0, 0.2)
+                    'yellow_ratio': (0, 0.3)
                 },
                 'common_rust': {
                     'green_ratio': (0.3, 0.6), 
                     'brightness': (0.3, 0.6),
                     'brown_spots': (0.2, 0.4),
                     'yellow_ratio': (0.2, 0.4)
+                },
+                'northern_leaf_blight': {
+                    'green_ratio': (0.2, 0.5), 
+                    'brightness': (0.2, 0.5),
+                    'brown_spots': (0.3, 0.6),
+                    'yellow_ratio': (0.3, 0.5)
+                },
+                'gray_leaf_spot': {
+                    'green_ratio': (0.3, 0.6), 
+                    'brightness': (0.3, 0.6),
+                    'brown_spots': (0.15, 0.4),
+                    'yellow_ratio': (0.2, 0.4)
+                }
+            },
+            'wheat': {
+                'healthy': {
+                    'green_ratio': (0.4, 0.8), 
+                    'brightness': (0.5, 0.9),
+                    'brown_spots': (0, 0.1),
+                    'yellow_ratio': (0.1, 0.4)
+                },
+                'leaf_rust': {
+                    'green_ratio': (0.2, 0.5), 
+                    'brightness': (0.3, 0.7),
+                    'brown_spots': (0.2, 0.5),
+                    'yellow_ratio': (0.3, 0.6)
+                },
+                'stripe_rust': {
+                    'green_ratio': (0.3, 0.6), 
+                    'brightness': (0.4, 0.7),
+                    'brown_spots': (0.1, 0.3),
+                    'yellow_ratio': (0.4, 0.7)
+                },
+                'powdery_mildew': {
+                    'green_ratio': (0.4, 0.7), 
+                    'brightness': (0.6, 0.9),
+                    'brown_spots': (0, 0.2),
+                    'yellow_ratio': (0.2, 0.4)
+                }
+            },
+            'rice': {
+                'healthy': {
+                    'green_ratio': (0.6, 0.9), 
+                    'brightness': (0.4, 0.7),
+                    'brown_spots': (0, 0.1),
+                    'yellow_ratio': (0, 0.2)
+                },
+                'blast': {
+                    'green_ratio': (0.3, 0.6), 
+                    'brightness': (0.2, 0.5),
+                    'brown_spots': (0.2, 0.5),
+                    'yellow_ratio': (0.2, 0.4)
+                },
+                'bacterial_blight': {
+                    'green_ratio': (0.2, 0.5), 
+                    'brightness': (0.3, 0.6),
+                    'brown_spots': (0.1, 0.3),
+                    'yellow_ratio': (0.4, 0.7)
+                },
+                'brown_spot': {
+                    'green_ratio': (0.3, 0.6), 
+                    'brightness': (0.2, 0.5),
+                    'brown_spots': (0.3, 0.6),
+                    'yellow_ratio': (0.2, 0.4)
+                }
+            },
+            'cotton': {
+                'healthy': {
+                    'green_ratio': (0.5, 0.8), 
+                    'brightness': (0.4, 0.8),
+                    'brown_spots': (0, 0.1),
+                    'yellow_ratio': (0, 0.2)
+                },
+                'bacterial_blight': {
+                    'green_ratio': (0.3, 0.6), 
+                    'brightness': (0.3, 0.6),
+                    'brown_spots': (0.2, 0.4),
+                    'yellow_ratio': (0.2, 0.4)
+                },
+                'fusarium_wilt': {
+                    'green_ratio': (0.2, 0.5), 
+                    'brightness': (0.2, 0.5),
+                    'brown_spots': (0.1, 0.3),
+                    'yellow_ratio': (0.4, 0.7)
+                }
+            },
+            'sugarcane': {
+                'healthy': {
+                    'green_ratio': (0.6, 0.9), 
+                    'brightness': (0.5, 0.8),
+                    'brown_spots': (0, 0.1),
+                    'yellow_ratio': (0, 0.2)
+                },
+                'red_rot': {
+                    'green_ratio': (0.2, 0.5), 
+                    'brightness': (0.3, 0.6),
+                    'brown_spots': (0.3, 0.6),
+                    'yellow_ratio': (0.2, 0.4)
+                },
+                'smut': {
+                    'green_ratio': (0.3, 0.6), 
+                    'brightness': (0.2, 0.5),
+                    'brown_spots': (0.4, 0.7),
+                    'yellow_ratio': (0.1, 0.3)
+                }
+            },
+            'banana': {
+                'healthy': {
+                    'green_ratio': (0.5, 0.8), 
+                    'brightness': (0.4, 0.7),
+                    'brown_spots': (0, 0.1),
+                    'yellow_ratio': (0.1, 0.3)
+                },
+                'black_sigatoka': {
+                    'green_ratio': (0.2, 0.5), 
+                    'brightness': (0.2, 0.5),
+                    'brown_spots': (0.3, 0.6),
+                    'yellow_ratio': (0.2, 0.4)
+                },
+                'panama_disease': {
+                    'green_ratio': (0.1, 0.4), 
+                    'brightness': (0.2, 0.5),
+                    'brown_spots': (0.2, 0.5),
+                    'yellow_ratio': (0.4, 0.7)
+                }
+            },
+            'apple': {
+                'healthy': {
+                    'green_ratio': (0.6, 0.9), 
+                    'brightness': (0.4, 0.8),
+                    'brown_spots': (0, 0.1),
+                    'yellow_ratio': (0, 0.2)
+                },
+                'apple_scab': {
+                    'green_ratio': (0.3, 0.6), 
+                    'brightness': (0.2, 0.6),
+                    'brown_spots': (0.2, 0.5),
+                    'yellow_ratio': (0.1, 0.3)
+                },
+                'cedar_apple_rust': {
+                    'green_ratio': (0.4, 0.7), 
+                    'brightness': (0.3, 0.6),
+                    'brown_spots': (0.1, 0.3),
+                    'yellow_ratio': (0.2, 0.5)
+                }
+            },
+            'mango': {
+                'healthy': {
+                    'green_ratio': (0.6, 0.9), 
+                    'brightness': (0.4, 0.8),
+                    'brown_spots': (0, 0.1),
+                    'yellow_ratio': (0, 0.2)
+                },
+                'anthracnose': {
+                    'green_ratio': (0.3, 0.6), 
+                    'brightness': (0.2, 0.6),
+                    'brown_spots': (0.2, 0.5),
+                    'yellow_ratio': (0.1, 0.3)
+                },
+                'powdery_mildew': {
+                    'green_ratio': (0.4, 0.7), 
+                    'brightness': (0.5, 0.8),
+                    'brown_spots': (0, 0.2),
+                    'yellow_ratio': (0.1, 0.3)
                 }
             }
         }
@@ -829,16 +632,73 @@ class VisionService:
             return self._get_default_analysis()
     
     def _determine_crop_type_cv(self, img_cv, analysis_results):
-        """Determine crop type using computer vision analysis"""
+        """Enhanced crop type determination using computer vision analysis"""
         try:
             # Analyze leaf shape and texture patterns
             gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+            hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
+            
+            # Extract analysis results
+            green_ratio = analysis_results['green_ratio']
+            yellow_ratio = analysis_results['yellow_ratio']
+            brightness = analysis_results['brightness']
+            edge_density = analysis_results['edge_density']
             
             # Edge detection for shape analysis
             edges = cv2.Canny(gray, 50, 150)
             contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             
-            # Analyze dominant contour shape
+            # Initialize crop scores
+            crop_scores = {
+                'tomato': 0.0,
+                'potato': 0.0,
+                'corn': 0.0,
+                'wheat': 0.0,
+                'rice': 0.0,
+                'cotton': 0.0,
+                'sugarcane': 0.0,
+                'banana': 0.0,
+                'apple': 0.0,
+                'mango': 0.0
+            }
+            
+            # Color-based classification
+            if green_ratio > 0.7:
+                crop_scores['tomato'] += 0.3
+                crop_scores['potato'] += 0.2
+                crop_scores['rice'] += 0.2
+            elif green_ratio > 0.5:
+                crop_scores['corn'] += 0.2
+                crop_scores['wheat'] += 0.2
+                crop_scores['cotton'] += 0.1
+            
+            # Yellow ratio analysis (indicates maturity or disease)
+            if yellow_ratio > 0.4:  # High yellow suggests mature wheat
+                crop_scores['wheat'] += 0.5
+                crop_scores['corn'] += 0.3
+                crop_scores['rice'] += 0.2
+            elif yellow_ratio > 0.2:
+                crop_scores['wheat'] += 0.3
+                crop_scores['corn'] += 0.2
+                crop_scores['banana'] += 0.2
+                crop_scores['rice'] += 0.1
+            elif yellow_ratio > 0.1:
+                crop_scores['banana'] += 0.2
+                crop_scores['sugarcane'] += 0.1
+            
+            # Brightness analysis (mature wheat is typically bright/golden)
+            if brightness > 0.7:  # Very bright suggests mature wheat
+                crop_scores['wheat'] += 0.4
+                crop_scores['cotton'] += 0.2
+            elif brightness > 0.5:
+                crop_scores['wheat'] += 0.2
+                crop_scores['corn'] += 0.1
+                crop_scores['cotton'] += 0.1
+            elif brightness < 0.4:
+                crop_scores['potato'] += 0.2
+                crop_scores['tomato'] += 0.1
+            
+            # Shape and texture analysis
             if len(contours) > 0:
                 largest_contour = max(contours, key=cv2.contourArea)
                 
@@ -853,27 +713,112 @@ class VisionService:
                         approx = cv2.approxPolyDP(largest_contour, epsilon, True)
                         
                         # Classify based on shape characteristics
-                        if len(approx) < 6 and circularity > 0.5:
-                            return 'tomato'  # Round leaves
+                        if len(approx) < 6 and circularity > 0.6:
+                            # Round/oval leaves
+                            crop_scores['tomato'] += 0.4
+                            crop_scores['potato'] += 0.3
+                            crop_scores['apple'] += 0.2
                         elif len(approx) >= 8 and circularity < 0.3:
-                            return 'corn'    # Long, narrow leaves
-                        else:
-                            return 'potato'  # Irregular shaped leaves
+                            # Long, narrow structures (wheat spikes, corn leaves)
+                            crop_scores['wheat'] += 0.5  # Strong indicator for wheat
+                            crop_scores['corn'] += 0.4
+                            crop_scores['rice'] += 0.3
+                            crop_scores['sugarcane'] += 0.2
+                        elif 0.3 <= circularity <= 0.6:
+                            # Irregular shaped leaves
+                            crop_scores['cotton'] += 0.3
+                            crop_scores['banana'] += 0.2
+                            crop_scores['mango'] += 0.2
             
-            # Fallback to color-based classification
-            green_ratio = analysis_results['green_ratio']
-            yellow_ratio = analysis_results['yellow_ratio']
+            # Edge density analysis (texture complexity)
+            if edge_density > 0.15:
+                # Complex leaf structures
+                crop_scores['tomato'] += 0.2
+                crop_scores['potato'] += 0.2
+                crop_scores['cotton'] += 0.1
+            elif 0.05 <= edge_density <= 0.15:
+                # Medium complexity (wheat spikes, corn leaves)
+                crop_scores['wheat'] += 0.3
+                crop_scores['corn'] += 0.2
+                crop_scores['rice'] += 0.1
+            elif edge_density < 0.05:
+                # Simple structures
+                crop_scores['corn'] += 0.1
+                crop_scores['rice'] += 0.1
             
-            if green_ratio > 0.6:
-                return 'tomato'
-            elif yellow_ratio > 0.2:
-                return 'corn'
-            else:
-                return 'potato'
+            # HSV color space analysis for better crop identification
+            h_channel = hsv[:,:,0]
+            s_channel = hsv[:,:,1]
+            v_channel = hsv[:,:,2]
+            
+            # Analyze hue distribution
+            mean_hue = np.mean(h_channel)
+            if 35 <= mean_hue <= 85:  # Green range
+                crop_scores['tomato'] += 0.2
+                crop_scores['potato'] += 0.2
+                crop_scores['rice'] += 0.1
+            elif 15 <= mean_hue <= 35:  # Yellow-green range (mature wheat)
+                crop_scores['wheat'] += 0.4  # Strong indicator for wheat
+                crop_scores['corn'] += 0.3
+                crop_scores['banana'] += 0.1
+            elif 10 <= mean_hue <= 20:  # Golden/yellow range (very mature wheat)
+                crop_scores['wheat'] += 0.5
+                crop_scores['corn'] += 0.2
+            
+            # Saturation analysis
+            mean_saturation = np.mean(s_channel)
+            if mean_saturation > 100:  # High saturation (vibrant colors)
+                crop_scores['tomato'] += 0.1
+                crop_scores['apple'] += 0.1
+            elif mean_saturation < 50:  # Low saturation (muted colors)
+                crop_scores['wheat'] += 0.1
+                crop_scores['cotton'] += 0.1
+            
+            # Special wheat detection logic
+            if self._detect_wheat_patterns(img_cv, analysis_results):
+                crop_scores['wheat'] += 0.6  # Strong boost for wheat-specific patterns
+            
+            # Find the crop with highest score
+            best_crop = max(crop_scores, key=crop_scores.get)
+            best_score = crop_scores[best_crop]
+            
+            # Debug information
+            print(f"🔍 Crop detection scores: {dict(sorted(crop_scores.items(), key=lambda x: x[1], reverse=True)[:3])}")
+            print(f"🌾 Analysis: green={green_ratio:.3f}, yellow={yellow_ratio:.3f}, brightness={brightness:.3f}, edge_density={edge_density:.3f}")
+            
+            # If no clear winner, use enhanced fallback logic
+            if best_score < 0.3:
+                if yellow_ratio > 0.4 and brightness > 0.6:
+                    return 'wheat'  # Mature wheat characteristics
+                elif green_ratio > 0.6:
+                    return 'tomato'
+                elif yellow_ratio > 0.2:
+                    return 'corn'
+                else:
+                    return 'potato'
+            
+            return best_crop
                 
         except Exception as e:
             print(f"Crop type determination error: {str(e)}")
-            return 'tomato'  # Default fallback
+            # Enhanced fallback logic
+            try:
+                green_ratio = analysis_results.get('green_ratio', 0.5)
+                yellow_ratio = analysis_results.get('yellow_ratio', 0.1)
+                brightness = analysis_results.get('brightness', 0.5)
+                
+                if yellow_ratio > 0.4 and brightness > 0.6:
+                    return 'wheat'  # Strong wheat indicators
+                elif green_ratio > 0.7 and brightness < 0.6:
+                    return 'tomato'
+                elif yellow_ratio > 0.3:
+                    return 'wheat'
+                elif green_ratio > 0.5:
+                    return 'potato'
+                else:
+                    return 'corn'
+            except:
+                return 'tomato'  # Final fallback
     
     def _determine_disease_with_rules(self, crop_type, analysis_results):
         """Determine disease using loaded rules and computer vision analysis"""
@@ -1063,39 +1008,154 @@ class VisionService:
         return severity_map.get(disease, 'Moderate - Consult expert')
     
     def _get_treatment_recommendations(self, disease):
-        """Get treatment recommendations"""
+        """Get comprehensive treatment recommendations for various diseases"""
         treatments = {
             'healthy': [
                 'Continue current care routine',
                 'Monitor plant health regularly',
-                'Maintain proper nutrition and watering'
+                'Maintain proper nutrition and watering',
+                'Apply balanced fertilizer as needed'
             ],
             'early_blight': [
                 'Apply copper-based fungicide spray',
                 'Remove affected leaves immediately',
                 'Improve air circulation around plants',
-                'Reduce humidity levels'
+                'Reduce humidity levels',
+                'Apply preventive fungicide every 7-10 days'
             ],
             'late_blight': [
                 'Apply systemic fungicide immediately',
                 'Remove and destroy infected plants',
                 'Improve drainage in growing area',
-                'Avoid overhead watering'
+                'Avoid overhead watering',
+                'Use resistant varieties in future plantings'
             ],
             'bacterial_spot': [
                 'Apply copper-based bactericide',
                 'Remove infected plant parts',
                 'Disinfect gardening tools',
-                'Improve plant spacing'
+                'Improve plant spacing',
+                'Avoid working with wet plants'
+            ],
+            'leaf_spot': [
+                'Apply broad-spectrum fungicide',
+                'Remove affected leaves',
+                'Improve air circulation',
+                'Water at soil level only'
             ],
             'common_rust': [
                 'Apply rust-specific fungicide',
                 'Remove affected leaves',
                 'Ensure good air circulation',
-                'Avoid wet conditions'
+                'Avoid wet conditions',
+                'Apply sulfur-based fungicide'
+            ],
+            'northern_leaf_blight': [
+                'Apply triazole fungicide',
+                'Practice crop rotation',
+                'Remove crop residue',
+                'Plant resistant varieties'
+            ],
+            'gray_leaf_spot': [
+                'Apply strobilurin fungicide',
+                'Improve field drainage',
+                'Reduce plant density',
+                'Use resistant hybrids'
+            ],
+            'leaf_rust': [
+                'Apply propiconazole fungicide',
+                'Monitor weather conditions',
+                'Use resistant wheat varieties',
+                'Apply at first sign of infection'
+            ],
+            'stripe_rust': [
+                'Apply triazole fungicide immediately',
+                'Use resistant varieties',
+                'Monitor temperature and humidity',
+                'Apply preventive treatments in high-risk areas'
+            ],
+            'powdery_mildew': [
+                'Apply sulfur-based fungicide',
+                'Improve air circulation',
+                'Reduce nitrogen fertilization',
+                'Remove infected plant parts',
+                'Apply baking soda solution (organic option)'
+            ],
+            'blast': [
+                'Apply tricyclazole fungicide',
+                'Manage water levels properly',
+                'Use resistant rice varieties',
+                'Apply silicon fertilizer'
+            ],
+            'bacterial_blight': [
+                'Apply copper-based bactericide',
+                'Use certified disease-free seeds',
+                'Improve field drainage',
+                'Avoid excessive nitrogen fertilization'
+            ],
+            'brown_spot': [
+                'Apply mancozeb fungicide',
+                'Improve soil fertility',
+                'Ensure proper water management',
+                'Use resistant varieties'
+            ],
+            'fusarium_wilt': [
+                'Use resistant cotton varieties',
+                'Improve soil drainage',
+                'Apply biocontrol agents',
+                'Avoid excessive irrigation',
+                'Practice crop rotation'
+            ],
+            'red_rot': [
+                'Remove and burn infected canes',
+                'Apply carbendazim fungicide',
+                'Improve field drainage',
+                'Use resistant sugarcane varieties'
+            ],
+            'smut': [
+                'Remove and destroy infected plants',
+                'Apply propiconazole fungicide',
+                'Use certified disease-free planting material',
+                'Practice field sanitation'
+            ],
+            'black_sigatoka': [
+                'Apply systemic fungicide',
+                'Remove infected leaves',
+                'Improve plantation drainage',
+                'Use resistant banana varieties'
+            ],
+            'panama_disease': [
+                'Remove and destroy infected plants',
+                'Improve soil drainage',
+                'Use resistant banana varieties',
+                'Practice strict field sanitation'
+            ],
+            'apple_scab': [
+                'Apply captan or myclobutanil fungicide',
+                'Remove fallen leaves',
+                'Prune for better air circulation',
+                'Use resistant apple varieties'
+            ],
+            'cedar_apple_rust': [
+                'Apply propiconazole fungicide',
+                'Remove nearby juniper trees if possible',
+                'Apply preventive treatments in spring',
+                'Use resistant apple varieties'
+            ],
+            'anthracnose': [
+                'Apply copper-based fungicide',
+                'Remove infected fruits and leaves',
+                'Improve orchard sanitation',
+                'Ensure proper pruning for air circulation'
+            ],
+            'black_scurf': [
+                'Apply azoxystrobin fungicide',
+                'Improve soil drainage',
+                'Use certified seed potatoes',
+                'Practice crop rotation'
             ]
         }
-        return treatments.get(disease, ['Consult local agricultural expert'])
+        return treatments.get(disease.lower().replace(' ', '_'), ['Consult local agricultural expert', 'Apply appropriate fungicide', 'Improve cultural practices'])
     
     def _get_prevention_tips(self, disease):
         """Get prevention tips"""
@@ -1239,6 +1299,41 @@ class VisionService:
             'analysis_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
     
+    def _detect_plant_content(self, img_cv):
+        """Enhanced plant content detection"""
+        try:
+            if cv2 is None:
+                return True  # Assume plant content if OpenCV unavailable
+            
+            hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
+            total_pixels = img_cv.shape[0] * img_cv.shape[1]
+            
+            # Check for vegetation (green and yellow-green colors for mature crops like wheat)
+            green_mask = cv2.inRange(hsv, (25, 40, 40), (85, 255, 255))
+            yellow_green_mask = cv2.inRange(hsv, (15, 40, 40), (35, 255, 255))
+            vegetation_mask = cv2.bitwise_or(green_mask, yellow_green_mask)
+            
+            vegetation_ratio = np.sum(vegetation_mask > 0) / total_pixels
+            
+            # Check for organic textures
+            gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+            edges = cv2.Canny(gray, 50, 150)
+            edge_density = np.sum(edges > 0) / total_pixels
+            
+            # Plant content criteria - more lenient for mature crops
+            has_vegetation = vegetation_ratio > 0.1  # Lower threshold for mature wheat
+            has_organic_texture = edge_density > 0.03  # Lower threshold for plant textures
+            
+            # Additional check for wheat-like patterns (vertical lines/spikes)
+            lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=50, minLineLength=30, maxLineGap=10)
+            has_plant_structure = lines is not None and len(lines) > 5
+            
+            return has_vegetation or has_organic_texture or has_plant_structure
+            
+        except Exception as e:
+            print(f"Plant content detection error: {str(e)}")
+            return True  # Default to assuming plant content
+
     def _perform_advanced_analysis(self, img_cv, img_array):
         """Perform comprehensive image analysis using multiple techniques"""
         try:
@@ -1246,21 +1341,11 @@ class VisionService:
             if cv2 is None:
                 return self._basic_fallback_analysis(img_array)
             
-            # Check if the image contains plant content
-            if not self._detect_plant_content(img_cv):
-                return {
-                    'success': False,
-                    'error': 'No plant or leaf detected in the image',
-                    'green_ratio': 0,
-                    'brown_spots': 0,
-                    'yellow_ratio': 0,
-                    'brightness': 0,
-                    'edge_density': 0,
-                    'health_score': 0,
-                    'color_confidence': 0,
-                    'texture_confidence': 0,
-                    'spot_confidence': 0
-                }
+            # Check if the image contains plant content - but don't fail completely if not detected
+            plant_detected = self._detect_plant_content(img_cv)
+            if not plant_detected:
+                print("⚠️ Limited plant content detected, proceeding with analysis...")
+                # Continue with analysis but note the limitation
             
             # Convert to different color spaces for analysis
             hsv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2HSV)
@@ -1545,3 +1630,44 @@ class VisionService:
                 base_recommendations.append("🔍 High diseased area detected - remove affected parts immediately")
         
         return base_recommendations
+    
+    def _detect_wheat_patterns(self, img_cv, analysis_results):
+        """Detect wheat-specific visual patterns"""
+        try:
+            if cv2 is None:
+                return False
+            
+            # Wheat characteristics: golden color, vertical spike patterns, high brightness
+            yellow_ratio = analysis_results['yellow_ratio']
+            brightness = analysis_results['brightness']
+            
+            # Strong indicators for wheat
+            has_golden_color = yellow_ratio > 0.3 and brightness > 0.6
+            
+            # Detect vertical spike patterns typical of wheat
+            gray = cv2.cvtColor(img_cv, cv2.COLOR_BGR2GRAY)
+            edges = cv2.Canny(gray, 50, 150)
+            lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=40, minLineLength=25, maxLineGap=8)
+            
+            vertical_lines = 0
+            if lines is not None:
+                for line in lines:
+                    x1, y1, x2, y2 = line[0]
+                    angle = np.abs(np.arctan2(y2 - y1, x2 - x1) * 180 / np.pi)
+                    if 70 <= angle <= 110:  # Near vertical lines
+                        vertical_lines += 1
+            
+            has_spike_pattern = vertical_lines > 5
+            
+            # Check for wheat-like texture (fine, dense patterns)
+            laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+            has_wheat_texture = 100 < laplacian_var < 400
+            
+            # Wheat detection score
+            wheat_indicators = sum([has_golden_color, has_spike_pattern, has_wheat_texture])
+            
+            return wheat_indicators >= 2  # At least 2 out of 3 indicators
+            
+        except Exception as e:
+            print(f"Wheat pattern detection error: {str(e)}")
+            return False

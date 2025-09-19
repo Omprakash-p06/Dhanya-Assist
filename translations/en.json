@@ -9,33 +9,24 @@
   "disease_detection": "Disease Detection",
   "market_prices": "Market Prices",
   "farming_tips": "Farming Tips",
-  
   "welcome_title": "Smart Farming Made Simple",
   "welcome_subtitle": "AI-powered crop management, disease detection, and weather insights",
-  
   "crop_analysis": "Crop Analysis",
   "crop_analysis_desc": "Upload plant images for AI-powered disease detection and treatment recommendations",
-  
   "weather_insights": "Weather Insights",
   "weather_insights_desc": "Get detailed weather forecasts and farming recommendations based on conditions",
-  
   "soil_analysis": "Soil Analysis",
   "soil_analysis_desc": "Analyze soil conditions and get personalized fertilizer recommendations",
-  
   "market_prices_desc": "Stay updated with current crop prices and market trends",
-  
   "quick_scan": "📷 Quick Scan",
   "weather_map": "🗺️ Weather Map",
-  
   "upload_title": "Plant Disease Detection",
   "upload_text": "Drop your plant image here",
   "upload_subtext": "or click to browse from your device",
   "browse_files": "Browse Files",
-  
   "analysis_results": "Analysis Results",
   "weather_title": "Today's Weather",
   "weather_loading": "Loading weather data...",
-  
   "input_section": "Farm Information",
   "soil_ph": "Soil pH Level",
   "nitrogen": "Nitrogen (N)",
@@ -45,79 +36,64 @@
   "humidity": "Humidity (%)",
   "rainfall": "Rainfall (mm)",
   "location": "Your Location",
-  
   "get_recommendations": "Get Crop Recommendations",
   "upload_image": "Upload Crop Image",
   "analyze_disease": "Analyze for Diseases",
   "check_weather": "Check Weather",
-  
   "recommended_crops": "Recommended Crops for Your Farm",
   "confidence_score": "Confidence",
   "yield_estimate": "Expected Yield",
   "profit_estimate": "Estimated Profit",
-  
   "weather_info": "Current Weather Conditions",
   "temperature_label": "Temperature",
   "humidity_label": "Humidity",
   "rainfall_label": "Rainfall",
   "weather_desc": "Partly cloudy with moderate humidity, suitable for most crops",
-  
   "disease_analysis": "Disease Analysis Results",
   "detected_disease": "Detected Disease",
   "treatment_recommended": "Recommended Treatment",
   "prevention_tips": "Prevention Tips",
-  
   "crop_rice": "Rice",
   "crop_wheat": "Wheat",
   "crop_sugarcane": "Sugarcane",
   "crop_cotton": "Cotton",
   "crop_maize": "Maize",
   "crop_tomato": "Tomato",
-  
   "disease_leaf_blight": "Leaf Blight",
   "disease_rust": "Rust Disease",
   "disease_wilt": "Bacterial Wilt",
-  
   "treatment_fungicide": "Apply copper-based fungicide spray twice weekly",
   "treatment_organic": "Use neem oil spray and maintain proper drainage",
   "treatment_antibacterial": "Remove affected plants and treat soil with antibacterial agents",
-  
   "prevention_spacing": "Maintain proper plant spacing and avoid overhead watering",
   "prevention_rotation": "Practice crop rotation and use disease-resistant varieties",
   "prevention_hygiene": "Keep tools clean and remove infected plant debris",
-  
   "recommendations_ready": "Crop recommendations generated successfully!",
   "analysis_complete": "Image analysis completed successfully!",
   "no_file_selected": "Please select an image file to upload",
-
   "weather_info": "Weather Information",
   "location": "Location",
   "weather_forecast": "Description",
   "temperature_label": "Temperature",
   "humidity_label": "Humidity",
   "rainfall_label": "Rainfall",
-  
   "footer_text": "Built for Smart India Hackathon 2024 by Team Algorithmic Alchemists",
   "powered_by": "Powered by AI and Real-time Data",
-  
   "farming_tips": "Farming Tips",
   "drop_image_text": "Drop your plant image here",
   "browse_device_text": "or click to browse from your device",
-  
   "seasonal_tips": "Seasonal Farming Tips",
   "tip_1": "Monitor soil moisture regularly for optimal irrigation",
   "tip_2": "Rotate crops to maintain soil fertility",
   "tip_3": "Use integrated pest management techniques",
   "tip_4": "Apply fertilizers based on soil test results",
   "tip_5": "Harvest crops at the right maturity stage",
-  
   "crop_modal_desc": "Upload an image of your crops to get detailed analysis including disease detection, growth stage assessment, and care recommendations.",
   "weather_modal_loading": "Loading detailed weather information...",
   "soil_modal_desc": "Get comprehensive soil analysis and recommendations for optimal crop growth.",
   "soil_recommendations": "Soil Recommendations",
   "soil_analysis_info": "Based on your location and crop type, here are our soil analysis recommendations...",
   "market_loading": "Loading current market prices...",
-  
   "analyzing_image": "Analyzing your plant image...",
   "analysis_failed": "Analysis failed. Please try again with a different image.",
   "analysis_complete_title": "Analysis Complete",
@@ -131,5 +107,19 @@
   "plant_healthy": "Plant appears healthy! Continue monitoring for optimal growth.",
   "unable_classify": "Unable to classify image. Please try uploading a clearer plant image.",
   "select_image_file": "Please select an image file.",
-  "weather_unavailable": "Weather data unavailable"
+  "weather_unavailable": "Weather data unavailable",
+  "soil_analysis_complete": "Soil analysis completed successfully!",
+  "soil_properties": "Soil Properties",
+  "recommended_crops": "Recommended Crops",
+  "soil_improvement": "Soil Improvement Recommendations",
+  "ph_level": "pH Level",
+  "moisture_content": "Moisture Content",
+  "organic_matter": "Organic Matter",
+  "soil_type": "Soil Type",
+  "suitability": "Suitability",
+  "yield": "Yield",
+  "profit": "Profit",
+  "priority_high": "High Priority",
+  "priority_medium": "Medium Priority",
+  "priority_low": "Low Priority"
 }

@@ -140,6 +140,158 @@ def get_weather():
             'data': weather_service._get_mock_weather()
         })
 
+@app.route('/api/soil_analysis', methods=['POST'])
+def analyze_soil():
+    """Analyze soil conditions and provide crop recommendations"""
+    current_lang = session.get('language', 'en')
+    session_id = session.get('session_id', 'anonymous')
+    
+    try:
+        # Get input data (can be from form or location)
+        data = request.get_json() or {}
+        
+        # Get location coordinates
+        lat = data.get('lat', 20.5937)  # Default to India center
+        lon = data.get('lon', 78.9629)
+        
+        # Get soil data from service
+        soil_result = soil_service.get_soil_data(lat, lon)
+        
+        if soil_result.get('success'):
+            soil_data = soil_result['data']
+            
+            # Use ML model to get crop recommendations based on soil data
+            crop_recommendations = crop_model.predict_crop({
+                'N': soil_data.get('nitrogen', 50),
+                'P': soil_data.get('phosphorus', 30),
+                'K': soil_data.get('potassium', 40),
+                'temperature': soil_data.get('temperature', 25),
+                'humidity': data.get('humidity', 60),  # From weather or user input
+                'ph': soil_data.get('ph', 6.5),
+                'rainfall': data.get('rainfall', 150)  # From weather or user input
+            })
+            
+            # Analyze soil suitability for recommended crops
+            suitability_analysis = {}
+            for rec in crop_recommendations:
+                crop_name = rec['crop']
+                suitability_score = soil_service.analyze_soil_suitability(soil_data, crop_name)
+                suitability_analysis[crop_name] = {
+                    'suitability_score': round(suitability_score * 100, 1),
+                    'suitability_level': 'High' if suitability_score > 0.7 else 'Medium' if suitability_score > 0.4 else 'Low'
+                }
+            
+            # Generate soil improvement recommendations
+            soil_recommendations = _generate_soil_recommendations(soil_data)
+            
+            return jsonify({
+                'status': 'success',
+                'soil_analysis': {
+                    'soil_properties': soil_data,
+                    'crop_recommendations': crop_recommendations,
+                    'suitability_analysis': suitability_analysis,
+                    'soil_recommendations': soil_recommendations,
+                    'analysis_location': {
+                        'latitude': lat,
+                        'longitude': lon
+                    }
+                },
+                'message': get_text('soil_analysis_complete', current_lang)
+            })
+        
+        else:
+            return jsonify({
+                'status': 'error',
+                'error': 'Unable to analyze soil data',
+                'message': 'Please try again or check your location'
+            })
+            
+    except Exception as e:
+        print(f"Soil analysis error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'error': f'Soil analysis failed: {str(e)}',
+            'message': 'Please try again later'
+        })
+
+def _generate_soil_recommendations(soil_data):
+    """Generate soil improvement recommendations based on analysis"""
+    recommendations = []
+    
+    # pH recommendations
+    ph = soil_data.get('ph', 6.5)
+    if ph < 6.0:
+        recommendations.append({
+            'category': 'pH Management',
+            'issue': 'Soil is too acidic',
+            'recommendation': 'Apply agricultural lime to raise pH',
+            'priority': 'High'
+        })
+    elif ph > 8.0:
+        recommendations.append({
+            'category': 'pH Management',
+            'issue': 'Soil is too alkaline',
+            'recommendation': 'Apply sulfur or organic matter to lower pH',
+            'priority': 'High'
+        })
+    
+    # Nutrient recommendations
+    nitrogen = soil_data.get('nitrogen', 50)
+    if nitrogen < 40:
+        recommendations.append({
+            'category': 'Nitrogen',
+            'issue': 'Low nitrogen content',
+            'recommendation': 'Apply nitrogen-rich fertilizer or compost',
+            'priority': 'Medium'
+        })
+    
+    phosphorus = soil_data.get('phosphorus', 30)
+    if phosphorus < 20:
+        recommendations.append({
+            'category': 'Phosphorus',
+            'issue': 'Low phosphorus content',
+            'recommendation': 'Apply phosphate fertilizer or bone meal',
+            'priority': 'Medium'
+        })
+    
+    potassium = soil_data.get('potassium', 40)
+    if potassium < 30:
+        recommendations.append({
+            'category': 'Potassium',
+            'issue': 'Low potassium content',
+            'recommendation': 'Apply potash fertilizer or wood ash',
+            'priority': 'Medium'
+        })
+    
+    # Organic matter recommendations
+    organic_matter = soil_data.get('organic_matter', 3)
+    if organic_matter < 2.5:
+        recommendations.append({
+            'category': 'Organic Matter',
+            'issue': 'Low organic matter content',
+            'recommendation': 'Add compost, manure, or cover crops',
+            'priority': 'High'
+        })
+    
+    # Moisture recommendations
+    moisture = soil_data.get('moisture', 0.3)
+    if moisture < 0.2:
+        recommendations.append({
+            'category': 'Moisture Management',
+            'issue': 'Low soil moisture',
+            'recommendation': 'Improve irrigation and add mulch',
+            'priority': 'High'
+        })
+    elif moisture > 0.8:
+        recommendations.append({
+            'category': 'Drainage',
+            'issue': 'Excessive soil moisture',
+            'recommendation': 'Improve drainage and reduce irrigation',
+            'priority': 'High'
+        })
+    
+    return recommendations
+
 @app.route('/upload', methods=['POST'])
 def upload_image():
     """Handle crop image upload for disease detection using real computer vision"""

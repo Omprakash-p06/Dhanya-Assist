@@ -974,13 +974,15 @@
 
     <!-- Soil Analysis Modal -->
     <div id="soil-modal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 800px;">
             <button class="close-btn" onclick="closeModal('soil-modal')">&times;</button>
             <h2 data-translate="soil_analysis">Soil Analysis</h2>
             <p data-translate="soil_modal_desc">Get comprehensive soil analysis and recommendations for optimal crop growth.</p>
             <div id="soil-analysis-content">
-                <h3 data-translate="soil_recommendations">Soil Recommendations</h3>
-                <p data-translate="soil_analysis_info">Based on your location and crop type, here are our soil analysis recommendations...</p>
+                <div class="loading" style="text-align: center; padding: 2rem;">
+                    <div class="loading"></div>
+                    <p style="margin-top: 1rem;">Analyzing soil conditions...</p>
+                </div>
             </div>
         </div>
     </div>
@@ -1377,6 +1379,7 @@
 
         function openSoilAnalysis() {
             openModal('soil-modal');
+            loadSoilAnalysis();
         }
 
         function openMarketPrices() {
@@ -1547,9 +1550,7 @@
             loadDetailedWeather();
         }
 
-        function openSoilAnalysis() {
-            openModal('soil-modal');
-        }
+
 
         function openMarketPrices() {
             openModal('market-modal');
@@ -1651,6 +1652,178 @@
                 .openPopup();
         }
 
+        async function loadSoilAnalysis() {
+            const soilContent = document.getElementById('soil-analysis-content');
+            soilContent.innerHTML = '<div style="text-align: center; padding: 2rem;"><div class="loading"></div><p style="margin-top: 1rem;">Analyzing soil conditions...</p></div>';
+            
+            try {
+                // Get user location for soil analysis
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        async (position) => {
+                            const { latitude, longitude } = position.coords;
+                            await performSoilAnalysis(latitude, longitude);
+                        },
+                        async (error) => {
+                            console.log('Location access denied, using default location');
+                            await performSoilAnalysis(20.5937, 78.9629); // Default to India center
+                        }
+                    );
+                } else {
+                    await performSoilAnalysis(20.5937, 78.9629); // Default to India center
+                }
+            } catch (error) {
+                console.error('Soil analysis error:', error);
+                soilContent.innerHTML = '<p style="color: var(--destructive); text-align: center;">Error loading soil analysis. Please try again.</p>';
+            }
+        }
+
+        async function performSoilAnalysis(lat, lon) {
+            const soilContent = document.getElementById('soil-analysis-content');
+            
+            try {
+                const response = await fetch('/api/soil_analysis', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ lat, lon })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    displaySoilAnalysis(result);
+                } else {
+                    throw new Error('Soil analysis request failed');
+                }
+            } catch (error) {
+                console.error('Soil analysis error:', error);
+                soilContent.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: var(--destructive);">
+                        <p>❌ Unable to analyze soil conditions</p>
+                        <p style="font-size: 0.9rem; margin-top: 1rem;">Please check your internet connection and try again</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displaySoilAnalysis(result) {
+            const soilContent = document.getElementById('soil-analysis-content');
+            
+            if (result.status === 'success') {
+                const analysis = result.soil_analysis;
+                const soilProps = analysis.soil_properties;
+                const cropRecs = analysis.crop_recommendations;
+                const suitability = analysis.suitability_analysis;
+                const recommendations = analysis.soil_recommendations;
+
+                soilContent.innerHTML = `
+                    <div style="display: grid; gap: 2rem;">
+                        <!-- Soil Properties -->
+                        <div style="background: var(--background); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border);">
+                            <h3 style="color: var(--primary); margin-bottom: 1rem;">🌱 Soil Properties</h3>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                                <div style="text-align: center; padding: 1rem; background: var(--card); border-radius: 8px;">
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: var(--primary);">${soilProps.ph}</div>
+                                    <div style="font-size: 0.9rem; color: var(--muted-foreground);">pH Level</div>
+                                </div>
+                                <div style="text-align: center; padding: 1rem; background: var(--card); border-radius: 8px;">
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: var(--secondary);">${soilProps.nitrogen}</div>
+                                    <div style="font-size: 0.9rem; color: var(--muted-foreground);">Nitrogen (N)</div>
+                                </div>
+                                <div style="text-align: center; padding: 1rem; background: var(--card); border-radius: 8px;">
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: var(--chart-3);">${soilProps.phosphorus}</div>
+                                    <div style="font-size: 0.9rem; color: var(--muted-foreground);">Phosphorus (P)</div>
+                                </div>
+                                <div style="text-align: center; padding: 1rem; background: var(--card); border-radius: 8px;">
+                                    <div style="font-size: 1.5rem; font-weight: bold; color: var(--chart-5);">${soilProps.potassium}</div>
+                                    <div style="font-size: 0.9rem; color: var(--muted-foreground);">Potassium (K)</div>
+                                </div>
+                            </div>
+                            <div style="margin-top: 1rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem;">
+                                <div style="text-align: center;">
+                                    <div style="font-weight: bold;">${(soilProps.moisture * 100).toFixed(1)}%</div>
+                                    <div style="font-size: 0.9rem; color: var(--muted-foreground);">Moisture</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="font-weight: bold;">${soilProps.organic_matter}%</div>
+                                    <div style="font-size: 0.9rem; color: var(--muted-foreground);">Organic Matter</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="font-weight: bold;">${soilProps.soil_type}</div>
+                                    <div style="font-size: 0.9rem; color: var(--muted-foreground);">Soil Type</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Crop Recommendations -->
+                        <div style="background: var(--background); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border);">
+                            <h3 style="color: var(--primary); margin-bottom: 1rem;">🌾 Recommended Crops</h3>
+                            <div style="display: grid; gap: 1rem;">
+                                ${cropRecs.map(crop => `
+                                    <div style="padding: 1rem; background: var(--card); border-radius: 8px; border-left: 4px solid var(--primary);">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                            <h4 style="margin: 0; text-transform: capitalize;">${crop.crop}</h4>
+                                            <span style="background: var(--primary); color: var(--primary-foreground); padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.8rem;">
+                                                ${crop.confidence}% Match
+                                            </span>
+                                        </div>
+                                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem; font-size: 0.9rem;">
+                                            <div><strong>Yield:</strong> ${crop.yield_estimate}</div>
+                                            <div><strong>Profit:</strong> ${crop.profit_estimate}</div>
+                                            <div><strong>Suitability:</strong> 
+                                                <span style="color: ${suitability[crop.crop]?.suitability_level === 'High' ? 'var(--primary)' : suitability[crop.crop]?.suitability_level === 'Medium' ? 'var(--secondary)' : 'var(--destructive)'};">
+                                                    ${suitability[crop.crop]?.suitability_level || 'Unknown'} (${suitability[crop.crop]?.suitability_score || 0}%)
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Soil Improvement Recommendations -->
+                        ${recommendations.length > 0 ? `
+                        <div style="background: var(--background); padding: 1.5rem; border-radius: 12px; border: 1px solid var(--border);">
+                            <h3 style="color: var(--secondary); margin-bottom: 1rem;">💡 Soil Improvement Recommendations</h3>
+                            <div style="display: grid; gap: 1rem;">
+                                ${recommendations.map(rec => `
+                                    <div style="padding: 1rem; background: var(--card); border-radius: 8px; border-left: 4px solid ${rec.priority === 'High' ? 'var(--destructive)' : rec.priority === 'Medium' ? 'var(--secondary)' : 'var(--primary)'};">
+                                        <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 0.5rem;">
+                                            <h4 style="margin: 0;">${rec.category}</h4>
+                                            <span style="background: ${rec.priority === 'High' ? 'var(--destructive)' : rec.priority === 'Medium' ? 'var(--secondary)' : 'var(--primary)'}; color: white; padding: 0.25rem 0.5rem; border-radius: 8px; font-size: 0.7rem; margin-left: auto;">
+                                                ${rec.priority}
+                                            </span>
+                                        </div>
+                                        <div style="font-size: 0.9rem; color: var(--muted-foreground); margin-bottom: 0.5rem;">
+                                            <strong>Issue:</strong> ${rec.issue}
+                                        </div>
+                                        <div style="font-size: 0.9rem;">
+                                            <strong>Recommendation:</strong> ${rec.recommendation}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+
+                        <!-- Analysis Info -->
+                        <div style="text-align: center; padding: 1rem; background: var(--muted); border-radius: 8px; font-size: 0.9rem; color: var(--muted-foreground);">
+                            Analysis based on location: ${analysis.analysis_location.latitude.toFixed(4)}°, ${analysis.analysis_location.longitude.toFixed(4)}°
+                            <br>For more detailed soil testing, consult your local agricultural extension office.
+                        </div>
+                    </div>
+                `;
+            } else {
+                soilContent.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: var(--destructive);">
+                        <p>❌ ${result.error || 'Soil analysis failed'}</p>
+                        <p style="font-size: 0.9rem; margin-top: 1rem;">${result.message || 'Please try again later'}</p>
+                    </div>
+                `;
+            }
+        }
+
         function scrollToTop() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -1674,11 +1847,6 @@
                 });
             });
         });
-    </script>
-</body>
-</html>  
-      // Initialize app when DOM is loaded
-        document.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
 </html>

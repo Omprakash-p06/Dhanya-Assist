@@ -11,41 +11,33 @@ class SoilService:
         self.base_url = "http://api.agromonitoring.com/agro/1.0"
         
     def get_soil_data(self, lat, lon):
-        """Get soil data for specific coordinates"""
+        """Get soil data for specific coordinates from Open-Meteo"""
         try:
-            # Try Agromonitoring API first
-            soil_data = self._get_agromonitoring_soil(lat, lon)
-            if soil_data['success']:
-                return soil_data
-                
-            # Fallback to mock data if API fails
-            return self._get_mock_soil_data()
-            
-        except Exception as e:
-            print(f"Soil data error: {str(e)}")
-            return self._get_mock_soil_data()
-    
-    def _get_agromonitoring_soil(self, lat, lon):
-        """Get soil data from Agromonitoring API"""
-        try:
-            url = f"{self.base_url}/soil"
+            url = self.base_url
             params = {
-                'lat': lat,
-                'lon': lon,
-                'appid': self.agromonitoring_api_key
+                'latitude': lat,
+                'longitude': lon,
+                'hourly': 'soil_temperature_0cm,soil_moisture_0_1cm',
+                'daily': 'temperature_2m_max,temperature_2m_min',
             }
-            
+
             response = requests.get(url, params=params, timeout=10)
             response.raise_for_status()
-            
+
             data = response.json()
             
+            # We get hourly data, so let's take the most recent value
+            current_soil_temp = data['hourly']['soil_temperature_0cm'][-1]
+            current_soil_moisture = data['hourly']['soil_moisture_0_1cm'][-1]
+
             return {
                 'success': True,
                 'data': {
-                    'temperature': round(data.get('temp', 298) - 273.15, 1),  # Convert Kelvin to Celsius
-                    'moisture': data.get('moisture', 0.3),
-                    'ph': self._estimate_ph(lat, lon),  # Estimated based on location
+                    'temperature': round(current_soil_temp, 1),
+                    'moisture': round(current_soil_moisture, 2),
+                    # The following are still estimated, as free APIs for these are rare.
+                    # You could use more sophisticated estimation based on location.
+                    'ph': self._estimate_ph(lat, lon),
                     'organic_matter': self._estimate_organic_matter(),
                     'nitrogen': self._estimate_nutrient('nitrogen'),
                     'phosphorus': self._estimate_nutrient('phosphorus'),
@@ -53,9 +45,10 @@ class SoilService:
                     'soil_type': self._determine_soil_type(lat, lon)
                 }
             }
-            
-        except requests.exceptions.RequestException:
-            return {'success': False}
+
+        except requests.exceptions.RequestException as e:
+            print(f"Soil data error: {str(e)}")
+            return self._get_mock_soil_data() # Fallback to mock data
     
     def analyze_soil_suitability(self, soil_data, crop_type):
         """Analyze soil suitability for specific crop"""
